@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: telepathy
+---
+# Redis configuration start
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-master
+  namespace: telepathy
+  labels:
+    app: redis
+spec:
+  selector:
+    matchLabels:
+      app: redis
+      role: master
+      tier: backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+        role: master
+        tier: backend
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: master
+        image: redis
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 6379
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: telepathy
+  labels:
+    app: redis
+    role: master
+    tier: backend
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+    role: master
+    tier: backend
+# Redis configuration end
+---
+# SessionLauncher configuration start
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-launcher
+  namespace: telepathy
+  labels:
+    run: session-launcher
+spec:
+  ports:
+    - name: launcher
+      port: 9090
+      targetPort: 9090
+    - name: delegation
+      port: 9092
+      targetPort: 9092
+  selector:
+    run: session-launcher
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: session-launcher
+  namespace: telepathy
+  labels:
+    run: session-launcher
+spec:
+  selector:
+    matchLabels:
+      run: session-launcher
+  serviceName: session-launcher
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        run: session-launcher
+    spec:
+      nodeSelector:
+        kubernetes.io/os: windows
+      containers:
+        - name: sessionlauncher
+          image: telepathy.azurecr.io/telepathy/sessionlauncher:latest
+          imagePullPolicy: Always
+          ports:
+            - name: launcher
+              containerPort: 9090
+            - name: delegation
+              containerPort: 9092
+          env:                     # Environment variables passed to the container
+            - name: REDIS_HOST
+              value: "redis-master"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: BATCH_ACCOUNT_SERVICE_URL
+              value: ""
+            - name: BATCH_ACCOUNT_NAME
+              value: ""
+            - name: BATCH_ACCOUNT_KEY
+              value: ""
+            - name: BATCH_POOL_NAME
+              value: ""
+            - name: DES_STORAGE_CONNECTION_STRING
+              value: ""
+            - name: BROKER_LAUNCHER_ADDRESS
+              value: "broker-launcher"
+            - name: SESSION_LAUNCHER_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+      restartPolicy: Always
+# SessionLauncher configuration end
+---
+# BrokerLauncher configuration start
+apiVersion: v1
+kind: Service
+metadata:
+  name: broker-launcher
+  namespace: telepathy
+  labels:
+    run: broker-launcher
+spec:
+  ports:
+    - port: 9087
+      targetPort: 9087
+  selector:
+    run: broker-launcher
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broker-launcher
+  namespace: telepathy
+  labels:
+    run: broker-launcher
+spec:
+  selector:
+    matchLabels:
+      run: broker-launcher
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        run: broker-launcher
+    spec:
+      nodeSelector:
+        kubernetes.io/os: windows
+      containers:
+        - name: brokerlauncher
+          image: telepathy.azurecr.io/telepathy/brokerlauncher:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9087
+          env:                     
+            - name: REDIS_HOST
+              value: "redis-master"
+            - name: REDIS_PORT
+              value: "6379"
+      restartPolicy: Always
+# BrokerLauncher configuration end

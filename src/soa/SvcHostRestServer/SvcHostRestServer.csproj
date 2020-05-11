@@ -6,11 +6,12 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Microsoft.Telepathy.CcpServiceHost.Rest</RootNamespace>
     <AssemblyName>Microsoft.Telepathy.SvcHostRestServer</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AssemblyClsCompliant>false</AssemblyClsCompliant>
     <DefineTrace>true</DefineTrace>
     <Localizable>true</Localizable>
     <OutputPath>bin\$(Configuration)\</OutputPath>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>

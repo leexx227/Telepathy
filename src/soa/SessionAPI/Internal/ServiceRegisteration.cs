@@ -91,6 +91,37 @@ namespace Microsoft.Telepathy.Session.Internal
             return this.GetServiceRegistrationPath(GetServiceRegistrationFileName(serviceName, serviceVersion));
         }
 
+        public string GetBrokerLauncherServiceRegistrationPath(string filename, string content)
+        {
+            if (this.centralPaths != null)
+            {
+                foreach (string centralPath in this.centralPaths)
+                {
+                    if (!Directory.Exists(centralPath))
+                    {
+                        Directory.CreateDirectory(centralPath);
+                    }
+                    string path = SoaRegistrationAuxModule.GetServiceRegistrationPath(centralPath, filename);
+                    if (File.Exists(path))
+                    {
+                        return path;
+                    }
+                    else
+                    {
+                        using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                                using (var writer = new StreamWriter(fs))
+                                {
+                                    writer.WriteAsync(content).GetAwaiter().GetResult();
+                                }
+                        }              
+                    }                    
+                    return path;
+                }
+            }
+            return default;   
+        }
+
         /// <summary>
         /// Get the xml file which config the service.
         /// </summary>
@@ -224,7 +255,8 @@ namespace Microsoft.Telepathy.Session.Internal
             {
                 if (!char.IsLetterOrDigit(serviceName[i]) && !char.IsPunctuation(serviceName[i]))
                 {
-                    throw new ArgumentException(SR.ArgumentMustBeAlphaNumeric, "serviceName");
+                    throw new ArgumentException("Argument must be alpha numeric", "serviceName");
+                    //throw new ArgumentException(SR.ArgumentMustBeAlphaNumeric, "serviceName");
                 }
             }
 
@@ -254,7 +286,8 @@ namespace Microsoft.Telepathy.Session.Internal
             catch (Exception e)
             {
                 Trace.TraceError($"[SessionLauncher] .GetServiceVersionsInternalOnPremise: Get service versions. exception = {e}");
-                throw new SessionException(SR.FailToEnumerateServicVersions, e);
+                //throw new SessionException(SR.FailToEnumerateServicVersions, e);
+                throw new SessionException("Fail to enumerate service versions", e);
             }
         }
 

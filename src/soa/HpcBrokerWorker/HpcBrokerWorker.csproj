@@ -6,12 +6,14 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Microsoft.Telepathy.Internal.BrokerShim</RootNamespace>
     <AssemblyName>HpcBrokerWorker</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AssemblyClsCompliant>false</AssemblyClsCompliant>
     <DefineTrace>true</DefineTrace>
     <Localizable>true</Localizable>
     <AssemblyDescription>HPC Broker Worker Service</AssemblyDescription>
     <OutputPath>..\BrokerOutput\$(Configuration)\</OutputPath>
+    <DockerComposeProjectPath>..\..\..\docker-compose.dcproj</DockerComposeProjectPath>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <DebugSymbols>true</DebugSymbols>
@@ -49,6 +51,7 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>true</Prefer32Bit>
+    <OutputPath>bin\Release\</OutputPath>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />

@@ -18,9 +18,9 @@ namespace Microsoft.Telepathy.Common.TelepathyContext
 
         public CancellationToken CancellationToken { get; private set; }
 
-        public IFabricContext FabricContext { get; private set; }
+        public IClusterContext ClusterContext { get; private set; }
 
-        public IRegistry Registry => this.FabricContext.Registry;
+        public IRegistry Registry => this.ClusterContext.Registry;
 
         /// <summary>
         ///     Get the local fabric client context. This method should be called after the GetHpcContext(CancellationToken)
@@ -82,7 +82,7 @@ namespace Microsoft.Telepathy.Common.TelepathyContext
         {
             if (isDisposing)
             {
-                var fabricClientContext = this.FabricContext as IDisposable;
+                var fabricClientContext = this.ClusterContext as IDisposable;
                 if (fabricClientContext != null)
                 {
                     fabricClientContext.Dispose();

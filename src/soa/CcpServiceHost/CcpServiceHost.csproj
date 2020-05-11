@@ -8,7 +8,7 @@
     <AssemblyName Condition="$(BuildArchitecture)=='amd64'">HpcServiceHost</AssemblyName>
     <AssemblyName Condition="$(BuildArchitecture)=='i386'">HpcServiceHost32</AssemblyName>
     <PlatformTarget Condition="$(BuildArchitecture)=='i386'">x86</PlatformTarget>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AssemblyClsCompliant>false</AssemblyClsCompliant>
     <AssemblyDescription>HPC Service Host</AssemblyDescription>
     <Localizable>true</Localizable>
@@ -21,6 +21,7 @@
     <DefineTrace>true</DefineTrace>
     <DefineConstants>TRACE</DefineConstants>
     <OutputPath>bin\$(Configuration)\</OutputPath>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <DebugSymbols>true</DebugSymbols>
@@ -107,7 +108,6 @@
     <EmbeddedResource Include="StringTable.resx">
       <SubType>Designer</SubType>
       <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>StringTable.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

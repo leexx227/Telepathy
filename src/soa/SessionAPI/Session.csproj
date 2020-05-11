@@ -7,7 +7,7 @@
     <RootNamespace>Microsoft.Telepathy.Session</RootNamespace>
     <AssemblyName>Microsoft.Telepathy.Session</AssemblyName>
     <AssemblyVersionName>CCPv2</AssemblyVersionName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AssemblyClsCompliant>false</AssemblyClsCompliant>
     <DelaySign>true</DelaySign>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

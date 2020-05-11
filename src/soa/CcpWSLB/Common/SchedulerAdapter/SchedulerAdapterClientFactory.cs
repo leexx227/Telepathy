@@ -157,10 +157,11 @@ namespace Microsoft.Telepathy.ServiceBroker.Common.SchedulerAdapter
             }
             else
             {
-               
+
                 // TODO: implementing new authentication logic between brokerworker and sessionlauncher
-                
-                string headnodeMachine = await this.context.ResolveSessionLauncherNodeAsync();
+                Console.WriteLine("I'm in SchedulerAdapterCientFactory.cs, and the session id is " + this.sharedData.BrokerInfo.SessionId);
+                string headnodeMachine = await this.context.ResolveSessionLauncherNodeAsync(this.sharedData.BrokerInfo.SessionId);
+                Console.WriteLine("I'm in SchedulerAdapterCientFactory.cs, and the headnodeMachine is " + headnodeMachine);
                 // certThrumbprint = await this.context.GetSSLThumbprint();
                 
 

@@ -3,6 +3,7 @@
 
 namespace Microsoft.Telepathy.Common.TelepathyContext.Extensions
 {
+    using k8s;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -15,12 +16,21 @@ namespace Microsoft.Telepathy.Common.TelepathyContext.Extensions
     {
         private static readonly string SessionLauncherStatefulService = "SessionLauncherStatefulService";
 
-        public static async Task<string> ResolveSessionLauncherNodeAsync(this ITelepathyContext context)
+        public static async Task<string> ResolveSessionLauncherNodeAsync(this ITelepathyContext context, string sessionId = null)
         {
-            return await context.FabricContext.ResolveSingletonServicePrimaryAsync(SessionLauncherStatefulService, context.CancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                sessionId = SessionLauncherStatefulService;
+            }    
+            return await context.ClusterContext.ResolveSingletonServicePrimaryAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
         }
 
         // We only return IpAddressOrFQDN for the service nodes which is the high frequency usage.
         // For additional properties of the Node, use the methods in Common region.
+
+        public static async Task<T> GetClusterClientAsync<T>(this ITelepathyContext context)
+        {
+            return await context.ClusterContext.GetClusterClient<T>().ConfigureAwait(false);
+        }
     }
 }

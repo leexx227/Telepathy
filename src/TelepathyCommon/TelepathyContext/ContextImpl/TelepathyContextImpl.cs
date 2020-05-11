@@ -14,23 +14,23 @@ namespace Microsoft.Telepathy.Common.TelepathyContext.ContextImpl
 
         public SoaContext()
         {
-            this.FabricContext = SoaFabricContext.Default;
+            this.ClusterContext = SoaFabricContext.Default;
         }
 
         public SoaContext(string connectionString)
         {
-            this.FabricContext = new SoaFabricContext(connectionString);
+            this.ClusterContext = new SoaFabricContext(connectionString);
         }
 
         public SoaContext(EndpointsConnectionString connectionString)
         {
-            this.FabricContext = new SoaFabricContext(connectionString);
+            this.ClusterContext = new SoaFabricContext(connectionString);
         }
 
         public CancellationToken CancellationToken { get; }
 
-        public IFabricContext FabricContext { get; }
-
         public IRegistry Registry { get; } = new NonHARegistry();
+
+        public IClusterContext ClusterContext { get; }
     }
 }

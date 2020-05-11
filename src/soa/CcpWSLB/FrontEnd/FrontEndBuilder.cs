@@ -13,8 +13,10 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
     using System.ServiceModel.Configuration;
     using System.ServiceModel.Description;
     using System.Text;
+    using System.Threading;
     using System.Xml;
-
+    using k8s;
+    using Microsoft.Telepathy.Common.TelepathyContext;
     using Microsoft.Telepathy.ServiceBroker.Common;
     using Microsoft.Telepathy.ServiceBroker.FrontEnd.AzureQueue;
     using Microsoft.Telepathy.Session;
@@ -700,14 +702,21 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
                 else
 #endif
                 {
+                    //string brokerId = "broker" + sessionId;
+                    //string loadBalancerIp = TelepathyContainerContext.Get().Registry.GetValueAsync<string>(null, brokerId, new CancellationToken()).Result;                   
+                    string workerHostName = System.Net.Dns.GetHostName();
+                    BrokerTracing.TraceVerbose("[FrontEndBuilder] Build frontend: Current pod host name is {0}", workerHostName);
+                    IKubernetes client = TelepathyContainerContext.Get().ClusterContext.GetClusterClient<IKubernetes>().Result;
+                    string clusterIp = client.ReadNamespacedPod(workerHostName, "telepathy").Status.PodIP;
+                    BrokerTracing.TraceVerbose("[FrontEndBuilder] Build frontend: Apply session id with pod ip: {0}", clusterIp );
                     if (needFqdn)
                     {
                         string domainName = IPGlobalProperties.GetIPGlobalProperties().DomainName;
-                        builder.Host = string.Format("{0}.{1}", Environment.MachineName, domainName);
+                        builder.Host = string.Format("{0}.{1}", clusterIp, domainName);
                     }
                     else
                     {
-                        builder.Host = Environment.MachineName;
+                        builder.Host = clusterIp;
                     }
                 }
             }

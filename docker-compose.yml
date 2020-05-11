@@ -1,0 +1,21 @@
+version: '3.4'
+
+services:
+  sessionlauncher:
+    image: sessionlauncher
+    build:
+      context: .\src\soa\ContainerizedSessionLauncher
+      dockerfile: Dockerfile
+
+  hpcbrokerworker:
+    image: brokerworker
+    build:
+      context: .\src\soa\ContainerizedBrokerWorker
+      dockerfile: Dockerfile
+    
+  brokerlauncher:
+    image: brokerlauncher
+    build:
+      context: .\src\soa\ContainerizedBrokerLauncher
+      dockerfile: Dockerfile
+

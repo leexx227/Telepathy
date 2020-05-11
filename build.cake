@@ -18,7 +18,7 @@ if (!FileExists(msBuildPath))
 Information("Building using MSBuild at " + msBuildPath);
 
 var target = Argument("Target", "Build");
-var configuration = Argument("Configuration", "Debug");
+var configuration = Argument("Configuration", "Release");
 
 
 Task("Restore")

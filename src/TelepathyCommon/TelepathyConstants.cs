@@ -43,5 +43,13 @@ namespace Microsoft.Telepathy.Common
         public static string StandaloneSessionId => "0";
 
         public static string ServiceWorkingDirEnvVar => "TELEPATHY_SERVICE_WORKING_DIR";
+
+        public static string RedisHost => "REDIS_HOST";
+
+        public static string RedisPort => "REDIS_PORT";
+
+        public static string BrokerLauncherAddress => "BROKER_LAUNCHER_ADDRESS";
+
+        public static string SessionLauncherAddress => "SESSION_LAUNCHER_ADDRESS";
     }
 }

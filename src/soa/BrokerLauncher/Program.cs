@@ -11,9 +11,7 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher
     using System.Reflection;
     using System.ServiceProcess;
     using System.Threading;
-
     using CommandLine;
-
     using Microsoft.Hpc.Scheduler.Session.Internal.LauncherHostService;
     using Microsoft.Telepathy.Common;
     using Microsoft.Telepathy.Common.TelepathyContext;

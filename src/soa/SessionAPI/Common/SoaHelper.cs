@@ -20,7 +20,8 @@ namespace Microsoft.Telepathy.Session.Common
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Xml;
-
+    using k8s;
+    using k8s.Models;
     using Microsoft.Telepathy.Common;
     using Microsoft.Telepathy.Common.Registry;
     using Microsoft.Telepathy.Common.TelepathyContext;
@@ -315,6 +316,11 @@ namespace Microsoft.Telepathy.Session.Common
         /// Stores the address format of the broker management service.
         /// </summary>
         private const string BrokerManagementAddressFormat = "http://localhost:{0}/BrokerManagementService/{1}";
+
+        /// <summary>
+        /// Stores the address format of the broker management service.
+        /// </summary>
+        private const string ContainerizedBrokerManagementAddressFormat = "http://{0}:{1}/BrokerManagementService";
 
         /// <summary>
         /// Stores the address format of the data service.
@@ -694,6 +700,27 @@ namespace Microsoft.Telepathy.Session.Common
         public static string GetBrokerManagementServiceAddress(int pid)
         {
             return string.Format(BrokerManagementAddressFormat, BrokerManagementPort(IsSchedulerOnAzure()), pid);
+        }
+
+        public static string GetContainerizedBrokerManagementServiceAddress(string workername, string sessionId)
+        {
+            IClusterContext context = TelepathyContainerContext.Get().ClusterContext;
+            IKubernetes client = context.GetClusterClient<IKubernetes>().Result;
+            var port = BrokerManagementPort(IsSchedulerOnAzure());
+            //string workerExternalIp = client.ReadNamespacedService(workername, "telepathy").Status.LoadBalancer.Ingress[0].Ip;
+            string workerIp = client.ReadNamespacedService(workername, "telepathy").Spec.ClusterIP;
+            Console.WriteLine("Get brokermanagementservice cluster internal address : " + workerIp);
+            // set worker external ip address in Redis for quering by FrontEndBuilder
+            //context.Registry.SetValueAsync<string>(null, "broker" + sessionId, workerExternalIp, new CancellationToken()).GetAwaiter().GetResult();
+            //Console.WriteLine("Successfully set brokermanagementservice cluster external address in Redis: " + workerExternalIp);
+            //TODO: hard code to use only one broker worker
+            return string.Format(ContainerizedBrokerManagementAddressFormat, workerIp , port);
+        }
+
+        public static string NewContainerizedBrokerManagementServiceAddress()
+        {           
+            var port = BrokerManagementPort(IsSchedulerOnAzure());
+            return string.Format(ContainerizedBrokerManagementAddressFormat, "localhost", port);
         }
 
         /// <summary>

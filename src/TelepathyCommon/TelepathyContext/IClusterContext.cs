@@ -5,14 +5,16 @@ namespace Microsoft.Telepathy.Common.TelepathyContext
 {
     using System.Threading;
     using System.Threading.Tasks;
-
+    using k8s;
     using Microsoft.Telepathy.Common.Registry;
 
-    public interface IFabricContext
+    public interface IClusterContext
     {
         EndpointsConnectionString ConnectionString { get; }
 
         IRegistry Registry { get; }
+
+        Task<T> GetClusterClient<T>();
 
         Task<string> ResolveSingletonServicePrimaryAsync(string serviceName, CancellationToken token);
     }

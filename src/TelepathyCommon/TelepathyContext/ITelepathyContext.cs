@@ -11,7 +11,7 @@ namespace Microsoft.Telepathy.Common.TelepathyContext
     {
         CancellationToken CancellationToken { get; }
 
-        IFabricContext FabricContext { get; }
+        IClusterContext ClusterContext { get; }
 
         IRegistry Registry { get; }
     }

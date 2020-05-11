@@ -6,15 +6,15 @@ namespace Microsoft.Telepathy.Common.TelepathyContext.ContextImpl
     using System;
     using System.Threading;
     using System.Threading.Tasks;
-
+    using k8s;
     using Microsoft.Telepathy.Common.Registry;
 
     // TODO: remove me
-    public class SoaFabricContext : IFabricContext
+    public class SoaFabricContext : IClusterContext
     {
         private const string LocalHost = "localhost";
 
-        public static readonly IFabricContext Default = new SoaFabricContext();
+        public static readonly IClusterContext Default = new SoaFabricContext();
 
         public SoaFabricContext(string connectionString)
             : this(EndpointsConnectionString.ParseConnectionString(connectionString))
@@ -38,6 +38,11 @@ namespace Microsoft.Telepathy.Common.TelepathyContext.ContextImpl
         public async Task<string> ResolveSingletonServicePrimaryAsync(string serviceName, CancellationToken token)
         {
             return this.ConnectionString.ConnectionString;
+        }
+
+        public Task<T> GetClusterClient<T>()
+        {
+            throw new NotImplementedException();
         }
     }
 }

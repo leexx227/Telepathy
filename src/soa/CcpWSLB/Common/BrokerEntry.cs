@@ -6,8 +6,10 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Security.Principal;
     using System.ServiceModel.Configuration;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Xml;
@@ -99,6 +101,8 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
         /// </summary>
         private AzureQueueProxy azureQueueProxy;
 
+        private readonly string sessionId;
+
         /// <summary>
         /// Initializes a new instance of the BrokerEntry class
         /// </summary>
@@ -106,6 +110,8 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
         public BrokerEntry(string sessionId)
         {
             BrokerTracing.Initialize(sessionId);
+
+            this.sessionId = sessionId;
 
             if (SoaHelper.IsSchedulerOnAzure())
             {
@@ -228,11 +234,14 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
                 this.sharedData = new SharedData(brokerInfo, startInfo, brokerConfig, serviceConfig);
                 BrokerTracing.TraceVerbose("[BrokerEntry] Initialization: Step 1: Loading configuration and shared data succeeded.");
                 Debug.WriteLine($"[BrokerEntry](Debug) UseAad:{startInfo.UseAad}");
+                Console.WriteLine("[BrokerEntry] Initialization: Step 1: Loading configuration and shared data succeeded.");
 
                 // Step 2: Initialize broker queue
                 ClientInfo[] clientInfo;
+                Console.WriteLine("[BrokerEntry] Initialization: Step 2: Initialize broker queue start.");
                 this.brokerQueueFactory = BrokerEntry.InitBrokerQueue(this.sharedData, out clientInfo);
                 BrokerTracing.TraceVerbose("[BrokerEntry] Initialization: Step 2: Initialize broker queue succeeded.");
+                Console.WriteLine("[BrokerEntry] Initialization: Step 2: Initialize broker queue end.");
 
                 // Step 3: Initialize observer
                 this.observer = new BrokerObserver(this.sharedData, clientInfo);
@@ -245,7 +254,9 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
                 BrokerTracing.TraceVerbose("[BrokerEntry] Initialization: Step 4: Initialize broker state manager succeeded.");
 
                 // Step 5: Initialize service job monitor
-                var context = TelepathyContext.GetOrAdd(this.sharedData.BrokerInfo.Headnode);
+                //var context = TelepathyContext.GetOrAdd(this.sharedData.BrokerInfo.Headnode);
+                // Get Containerized context
+                var context = TelepathyContainerContext.Get();
 
                 if (SoaCommonConfig.WithoutSessionLayer)
                 { 
@@ -335,6 +346,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
 
                 // Step 12: Build initialization result and retrun to client
                 BrokerInitializationResult result = BrokerEntry.BuildInitializationResult(
+                    sessionId,
                     this.frontendResult,
                     dispatcherManager,
                     this.sharedData.Config.LoadBalancing.ServiceOperationTimeout,
@@ -650,6 +662,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
         /// <param name="useAzureQueue">if the azure storage queue(blob) is used</param>
         /// <returns>returns the initialization result</returns>
         private static BrokerInitializationResult BuildInitializationResult(
+            string sessionId,
             FrontendResult frontendResult,
             DispatcherManager dispatcherManager,
             int serviceOperationTimeout,
@@ -660,9 +673,12 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
             bool? useAzureQueue)
         {
             BrokerInitializationResult info = new BrokerInitializationResult();
-            info.BrokerEpr = frontendResult.FrontendUriList;
-            info.ControllerEpr = frontendResult.ControllerUriList;
-            info.ResponseEpr = frontendResult.GetResponseUriList;
+            info.BrokerEpr = GetFrontendExternalEpr(frontendResult.FrontendUriList, sessionId);
+            BrokerTracing.TraceWarning("[BrokerEntry] BrokerEpr in BrokerInitializationResult that return to client is: {0}", info.BrokerEpr[0]);
+            info.ControllerEpr = GetFrontendExternalEpr(frontendResult.ControllerUriList, sessionId);
+            BrokerTracing.TraceWarning("[BrokerEntry] ControllerEpr in BrokerInitializationResult that return to client is: {0}", info.ControllerEpr[0]);
+            info.ResponseEpr = GetFrontendExternalEpr(frontendResult.GetResponseUriList, sessionId);
+            BrokerTracing.TraceWarning("[BrokerEntry] ResponseEpr in BrokerInitializationResult that return to client is: {0}", info.ResponseEpr[0]);
             info.ServiceOperationTimeout = serviceOperationTimeout;
             info.ClientBrokerHeartbeatInterval = clientBrokerHeartbeatInterval;
             info.ClientBrokerHeartbeatRetryCount = clientBrokerHeartbeatRetryCount;
@@ -675,6 +691,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
         }
 
         private static BrokerInitializationResult BuildInitializationResult(
+            string sessionId,
             FrontendResult frontendResult,
             DispatcherManager dispatcherManager,
             int serviceOperationTimeout,
@@ -688,6 +705,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
             )
         {
             var info = BuildInitializationResult(
+                sessionId,
                 frontendResult,
                 dispatcherManager,
                 serviceOperationTimeout,
@@ -699,6 +717,29 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
             info.AzureControllerRequestQueueUri = controllerRequestQueueUri;
             info.AzureControllerResponseQueueUri = controllerResponseQueueUri;
             return info;
+        }
+
+        private static string[] GetFrontendExternalEpr(string[] eprs, string sessionId)
+        {
+            string externalIp = TelepathyContainerContext.Get().Registry.GetValueAsync<string>(null, "broker" + sessionId, new CancellationToken()).Result;
+            BrokerTracing.TraceWarning("[BrokerEntry] External brokerworkers ip address that return to client to use is : {0}", externalIp);
+            BrokerTracing.TraceWarning("[BrokerEntry] Eprs length is : {0}", eprs.Length);
+            return eprs.Select(epr => {
+                BrokerTracing.TraceWarning("[BrokerEntry] Internal Epr is : {0}", epr);
+                if (!string.IsNullOrEmpty(epr))
+                {
+                    epr = ReplaceHost(epr, externalIp);
+                }
+                BrokerTracing.TraceWarning("[BrokerEntry] External Epr is : {0}", epr);
+                return epr; 
+            }).ToArray();
+        }
+
+        private static string ReplaceHost(string original, string newHostName)
+        {
+            var builder = new UriBuilder(original);
+            builder.Host = newHostName;
+            return builder.Uri.ToString();
         }
 
         /// <summary>

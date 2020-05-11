@@ -6,10 +6,12 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
     using System;
     using System.Configuration;
     using System.Diagnostics;
+    using System.IO;
     using System.ServiceModel.Configuration;
     using System.Text;
-
+    using System.Threading;
     using Microsoft.Telepathy.Common;
+    using Microsoft.Telepathy.Common.TelepathyContext;
     using Microsoft.Telepathy.Session;
     using Microsoft.Telepathy.Session.Common;
     using Microsoft.Telepathy.Session.Configuration;
@@ -59,10 +61,32 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
         /// <param name="bindings">output the bindings</param>
         public static void LoadConfiguration(SessionStartInfoContract brokerSettings, BrokerStartInfo brokerInfo, out BrokerConfigurations brokerConfig, out ServiceConfiguration serviceConfig, out BindingsSection bindings)
         {
-            // Init config file
-            string filename = brokerInfo.ConfigurationFile;
-            BrokerTracing.TraceVerbose("[ConfigurationHelper] LoadConfiguration. Step 1: Load configuration file name: {0}", filename);
+            // Init config file from the config file path
+            Console.WriteLine("[ConfigurationHelper]: brokerInfo configuration file is " + brokerInfo.ConfigurationFile);
+            string path = brokerInfo.ConfigurationFile;
+            string directory = Path.GetDirectoryName(path);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+           
+            if (!File.Exists(path))
+            {
+                string filename = Path.GetFileName(path);
+                Console.WriteLine("[ConfigurationHelper]: brokerInfo configuration file name is " + filename);
+                string fileContent = TelepathyContainerContext.Get().ClusterContext.Registry.GetValueAsync<string>(null, filename, new CancellationToken()).Result;
+                Console.WriteLine("[ConfigurationHelper]: start to create config file in brokerworker, save file in path: " + brokerInfo.ConfigurationFile);
+                using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    using (var writer = new StreamWriter(fs))
+                    {
+                        writer.WriteAsync(fileContent).GetAwaiter().GetResult();
+                    }
+                }
+            }
 
+            Console.WriteLine("[ConfigurationHelper]: Finish to create config file in brokerworker, save file in path: " + brokerInfo.ConfigurationFile);
+            BrokerTracing.TraceVerbose("[ConfigurationHelper] LoadConfiguration. Step 1: Load configuration file name: {0}", path);
             brokerConfig = null;
             serviceConfig = null;
             bindings = null;
@@ -70,7 +94,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
             try
             {
                 ExeConfigurationFileMap map = new ExeConfigurationFileMap();
-                map.ExeConfigFilename = filename;
+                map.ExeConfigFilename = path;
                 Configuration config = null;
                 RetryManager.RetryOnceAsync(
                         () => config = ConfigurationManager.OpenMappedExeConfiguration(map, ConfigurationUserLevel.None),
