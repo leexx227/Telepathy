@@ -7,7 +7,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common.SchedulerAdapter
     using System.ServiceModel;
     using System.ServiceModel.Channels;
     using System.Threading.Tasks;
-
+    using Microsoft.Telepathy.IdentityUtil;
     using Microsoft.Telepathy.ServiceBroker.BackEnd;
     using Microsoft.Telepathy.Session;
     using Microsoft.Telepathy.Session.Data;
@@ -24,14 +24,19 @@ namespace Microsoft.Telepathy.ServiceBroker.Common.SchedulerAdapter
 
         private DispatcherManager dispatcherManager = null;
 
-        public SchedulerAdapterClient(Binding binding, EndpointAddress address, InstanceContext context) : this(binding, address, null, null, context)
+        public SchedulerAdapterClient(Binding binding, EndpointAddress address, InstanceContext context, FaultException fault = null) : this(binding, address, null, null, context, fault)
         {
         }
 
-        internal SchedulerAdapterClient(Binding binding, EndpointAddress address, string[] predefinedSvcHost, DispatcherManager dispatcherManager, InstanceContext instanceContext) : base(instanceContext, binding, address)
+        internal SchedulerAdapterClient(Binding binding, EndpointAddress address, string[] predefinedSvcHost, DispatcherManager dispatcherManager, InstanceContext instanceContext, FaultException fault = null) : base(instanceContext, binding, address)
         {
             this.predefinedSvcHost = predefinedSvcHost;
             this.dispatcherManager = dispatcherManager;
+            if (fault != null && fault.Code.Name.Equals(IdentityMessageFault.FaultCode))
+            {
+                IdentityMessageFault faultDetail = fault.CreateMessageFault().GetDetail<IdentityMessageFault>();
+                this.Endpoint.Behaviors.AddBehaviorFromExForClient(faultDetail).GetAwaiter().GetResult();
+            }
         }
 
         public async Task<bool> UpdateBrokerInfoAsync(string sessionId, Dictionary<string, object> properties) => await this.Channel.UpdateBrokerInfoAsync(sessionId, properties);
@@ -68,6 +73,11 @@ namespace Microsoft.Telepathy.ServiceBroker.Common.SchedulerAdapter
         public async Task<int?> GetTaskErrorCode(string jobId, string globalTaskId)
         {
             return await this.Channel.GetTaskErrorCode(jobId, globalTaskId);
+        }
+
+        public async Task<string> GetJobOwnerIDAsync(string sessionId)
+        {
+            return await this.Channel.GetJobOwnerIDAsync(sessionId);
         }
     }
 }

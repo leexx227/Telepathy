@@ -45,7 +45,7 @@ namespace Microsoft.Telepathy.ServiceBroker.UnitTest.Mock
             return this.allow;
         }
 
-        public MockBrokerAuthorization(SecurityIdentifier allowedUser) : base(allowedUser)
+        public MockBrokerAuthorization(string allowedUser) : base(allowedUser)
         {
         }
 

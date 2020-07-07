@@ -58,7 +58,22 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher {
                 this["SessionAddress"] = value;
             }
         }
-        
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string IdentityServerUrl
+        {
+            get
+            {
+                return ((string)(this["IdentityServerUrl"]));
+            }
+            set
+            {
+                this["IdentityServerUrl"] = value;
+            }
+        }
+
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("C:\\services\\registration")]

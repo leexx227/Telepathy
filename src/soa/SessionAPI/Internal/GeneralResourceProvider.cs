@@ -13,6 +13,7 @@ namespace Microsoft.Telepathy.Session.Internal
     using Microsoft.Telepathy.Session.Common;
     using Microsoft.Telepathy.Session.Exceptions;
     using Microsoft.Telepathy.Session.Interface;
+    using Microsoft.Telepathy.IdentityUtil;
 
     public class GeneralResourceProvider : IResourceProvider, IDisposable
     {
@@ -47,6 +48,11 @@ namespace Microsoft.Telepathy.Session.Internal
             }
 
             this.client = new SessionLauncherClient(info, binding);
+
+            if (info.UseIds && !string.IsNullOrEmpty(info.IdsUrl))
+            {
+                this.client.Endpoint.Behaviors.AddBehaviorForWinAuthClient(info.IdsUrl, IdentityUtil.SessionLauncherApi).GetAwaiter().GetResult();
+            }
         }
 
         public GeneralResourceProvider(SessionAttachInfo info, Binding binding)
@@ -71,6 +77,11 @@ namespace Microsoft.Telepathy.Session.Internal
             }
 
             this.client = new SessionLauncherClient(info, binding);
+
+            if (info.UseIds && !string.IsNullOrEmpty(info.IdsUrl))
+            {
+                this.client.Endpoint.Behaviors.AddBehaviorForWinAuthClient(info.IdsUrl, IdentityUtil.SessionLauncherApi).GetAwaiter().GetResult();
+            }
         }
 
         public async Task<SessionAllocateInfoContract> AllocateResource(SessionStartInfo startInfo, bool durable, TimeSpan timeout)

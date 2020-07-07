@@ -52,6 +52,8 @@ namespace Microsoft.Telepathy.EchoClient
         private const string UseWindowsClientCredentialArg = "useWCC";
         private const string UseAadArg = "useAad";
         private const string TargetListArg = "targetList";
+        private const string UseIdsArg = "useIds";
+        private const string IdsUrlArg = "IdsUrl";
 
         private bool helpInfo = false;
         public bool HelpInfo
@@ -265,6 +267,14 @@ namespace Microsoft.Telepathy.EchoClient
         }
         public bool UseAad { get; private set; } = false;
 
+        public bool UseIds { get; private set; } = false;
+
+        private string idsUrl = string.Empty;
+        public string IdsUrl
+        {
+            get { return this.idsUrl; }
+        }
+
         private List<string> targetList = null;
         public List<string> TargetList
         {
@@ -305,6 +315,7 @@ namespace Microsoft.Telepathy.EchoClient
             parser.TryGetArg<string>(RegPathArg, ref this.regPath);
             parser.TryGetArgList<string>(TargetListArg, ref this.targetList);
             parser.TryGetArg(AzureStorageConnectionStringArg, ref this.azureStorageConnectionString);
+            parser.TryGetArg<string>(IdsUrlArg, ref this.idsUrl);
 
             this.inprocessBroker = parser.GetSwitch(InprocessBrokerArg);
             this.isNoSession = parser.GetSwitch(IsNoSessionArg);
@@ -316,6 +327,7 @@ namespace Microsoft.Telepathy.EchoClient
             this.verbose = parser.GetSwitch(VerboseArg);
             this.useWCC = parser.GetSwitch(UseWindowsClientCredentialArg);
             this.UseAad = parser.GetSwitch(UseAadArg);
+            this.UseIds = parser.GetSwitch(UseIdsArg);
         }
 
         public void PrintHelp()

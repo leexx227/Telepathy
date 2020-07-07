@@ -28,6 +28,7 @@ namespace Microsoft.Hpc.Scheduler.Session.LauncherHostService
     using Microsoft.Telepathy.Session.Internal;
 
     using ISessionLauncher = Microsoft.Telepathy.Internal.SessionLauncher.ISessionLauncher;
+    using Microsoft.Telepathy.IdentityUtil;
 
     // TODO: Consider changing the if/switch branching for schedulers into sub-classes
     /// <summary>
@@ -292,6 +293,11 @@ namespace Microsoft.Hpc.Scheduler.Session.LauncherHostService
                     this.launcherHost.AddServiceEndpoint(typeof(ISessionLauncher), BindingHelper.HardCodedUnSecureNetTcpBinding, string.Empty);
                     this.launcherHost.AddServiceEndpoint(typeof(ISessionLauncher), BindingHelper.HardCodedUnSecureNetTcpBinding, "Internal");
 
+                    if (!string.IsNullOrEmpty(SessionLauncherRuntimeConfiguration.IdentityServerUrl))
+                    {
+                        this.launcherHost.Authorization.ServiceAuthorizationManager =
+                            new IdentityServiceAuthManager(SessionLauncherRuntimeConfiguration.IdentityServerUrl, IdentityUtil.SessionLauncherApi);
+                    }
                     TraceHelper.TraceEvent(TraceEventType.Information, "Add session launcher service endpoint {0}", sessionLauncherAddress);
                 }
 
@@ -364,6 +370,12 @@ namespace Microsoft.Hpc.Scheduler.Session.LauncherHostService
             {
                 // Use insecure binding until unified authentication logic is implemented
                 this.delegationHost.AddServiceEndpoint(typeof(ISchedulerAdapter), BindingHelper.HardCodedUnSecureNetTcpBinding, string.Empty);
+                if (!string.IsNullOrEmpty(SessionLauncherRuntimeConfiguration.IdentityServerUrl))
+                {
+                    this.delegationHost.Authorization.ServiceAuthorizationManager =
+                            new IdentityServiceAuthManager(SessionLauncherRuntimeConfiguration.IdentityServerUrl, IdentityUtil.SchedulerAdapterApi);
+                }
+
                 // if (SessionLauncherRuntimeConfiguration.OpenAzureStorageListener)
                 // {
                 //     this.delegationHost.AddServiceEndpoint(

@@ -730,7 +730,7 @@ namespace Microsoft.Telepathy.ServiceBroker.Common
                 }
                 else
                 {
-                    return new BrokerAuthorization(new SecurityIdentifier(sharedData.BrokerInfo.JobOwnerSID));
+                    return new BrokerAuthorization(sharedData.BrokerInfo.JobOwnerSID);
                 }
             }
             else

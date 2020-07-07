@@ -14,7 +14,7 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
     using System.ServiceModel.Description;
     using System.Text;
     using System.Xml;
-
+    using Microsoft.Telepathy.IdentityUtil;
     using Microsoft.Telepathy.ServiceBroker.Common;
     using Microsoft.Telepathy.ServiceBroker.FrontEnd.AzureQueue;
     using Microsoft.Telepathy.Session;
@@ -275,11 +275,12 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
                 ServiceEndpoint getResponseEndpoint = result.ControllerFrontend.AddServiceEndpoint(typeof(IResponseService), binding, DefaultGetResponsePostfix);
                 getResponseEndpoint.Behaviors.Add(new ControllerFrontendProvider(false, clientManager, brokerAuth, observer, null));
                 result.GetResponseUri = getResponseEndpoint.ListenUri.AbsoluteUri;
-                if (sharedData.StartInfo.UseAad)
-                {
-                   throw new NotSupportedException();
-                }
-                else if (sharedData.StartInfo.LocalUser.GetValueOrDefault())
+
+                result.ControllerFrontend.UseServiceAuthorizationManagerAsync(new IdentityServiceAuthManager(sharedData.BrokerInfo.IdentityServerUrl, IdentityUtil.BrokerWorkerApi));
+                ServiceAuthorizationBehavior myServiceBehavior = result.ControllerFrontend.Description.Behaviors.Find<ServiceAuthorizationBehavior>();
+                myServiceBehavior.PrincipalPermissionMode = PrincipalPermissionMode.None;
+
+                if (sharedData.StartInfo.LocalUser.GetValueOrDefault())
                 {
                     BrokerTracing.TraceVerbose("[FrontEndBuilder] Building net.tcp frontend with internal authentication.");
                     result.ControllerFrontend.Credentials.UseInternalAuthenticationAsync(true).GetAwaiter().GetResult();

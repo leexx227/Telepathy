@@ -219,6 +219,13 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher
                         settings.SessionAddress = option.SessionAddress;
                         Trace.TraceInformation($"{nameof(settings.SessionAddress)} set to {option.SessionAddress}.");
                     }
+
+                    if (!string.IsNullOrEmpty(option.IdentityServerUrl))
+                    {
+                        settings.IdentityServerUrl = option.IdentityServerUrl;
+                        Trace.TraceInformation($"{nameof(settings.IdentityServerUrl)} set to {option.IdentityServerUrl}.");
+                    }
+
                     if (!string.IsNullOrEmpty(option.Logging))
                     {
                         try

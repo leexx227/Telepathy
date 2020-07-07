@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using IdentityModel;
+
 namespace Microsoft.Telepathy.Session.Interface
 {
     using System;
@@ -11,6 +13,8 @@ namespace Microsoft.Telepathy.Session.Interface
 
     using Microsoft.Telepathy.Common;
     using Microsoft.Telepathy.Session.Common;
+    using System.Security.Claims;
+
 
     /// <summary>
     /// Broker Authroization
@@ -21,7 +25,7 @@ namespace Microsoft.Telepathy.Session.Interface
         /// <summary>
         /// Stores the allowed user
         /// </summary>
-        private SecurityIdentifier allowedUser;
+        private string allowedUser;
 
         /// <summary>
         /// Stores the security descriptor
@@ -48,7 +52,7 @@ namespace Microsoft.Telepathy.Session.Interface
         /// Only allow specified user to access
         /// </summary>
         /// <param name="allowedUser">indicate the allowed user</param>
-        public BrokerAuthorization(SecurityIdentifier allowedUser)
+        public BrokerAuthorization(string allowedUser)
         {
             this.allowedUser = allowedUser;
         }
@@ -87,7 +91,7 @@ namespace Microsoft.Telepathy.Session.Interface
                 throw new System.ArgumentNullException("info");
             }
 
-            this.allowedUser = new SecurityIdentifier(info.GetString("allowedUser"));
+            this.allowedUser = info.GetString("allowedUser");
 
             if (!String.IsNullOrEmpty(info.GetString("sddl")))
             {
@@ -119,6 +123,15 @@ namespace Microsoft.Telepathy.Session.Interface
         /// <returns>whether the access is allowed</returns>
         public virtual bool CheckAccess(ServiceSecurityContext context)
         {
+            if (ClaimsPrincipal.Current != null && ClaimsPrincipal.Current.FindFirst(JwtClaimTypes.Subject) != null)
+            {
+                string sid = ClaimsPrincipal.Current.FindFirst(JwtClaimTypes.Subject).Value;
+                if (sid.Equals(this.allowedUser))
+                {
+                    return true;
+                }
+            }
+
             if (SoaHelper.IsOnAzure())
             {
                 // Skip this check on Azure.
@@ -152,7 +165,7 @@ namespace Microsoft.Telepathy.Session.Interface
                 return true;
             }
 
-            if (user.User == this.allowedUser)
+            if (user.Name.Equals(this.allowedUser))
             {
                 return true;
             }
@@ -178,7 +191,7 @@ namespace Microsoft.Telepathy.Session.Interface
                 throw new System.ArgumentNullException("info");
             }
 
-            info.AddValue("allowedUser", this.allowedUser.Value);
+            info.AddValue("allowedUser", this.allowedUser);
             info.AddValue("sddl", this.sddl);
             if (this.sddl != null)
             {

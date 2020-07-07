@@ -103,18 +103,18 @@ namespace Microsoft.Telepathy.Session
         /// <param name="winService"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static async Task<ServiceHost> UseServiceAuthorizationManagerAsync(
+        public static ServiceHost UseServiceAuthorizationManagerAsync(
             this ServiceHost serviceHost,
             ServiceAuthorizationManager authorizationManager,
             bool winService = false,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            IRegistry registry = winService ? Registry : TelepathyContext.GetOrAdd().Registry;
+            /*IRegistry registry = winService ? Registry : TelepathyContext.GetOrAdd().Registry;
             serviceHost.Credentials.ServiceCertificate.SetCertificate(
                 StoreLocation.LocalMachine,
                 StoreName.My,
                 X509FindType.FindByThumbprint,
-                await registry.GetSSLThumbprint(cancellationToken).ConfigureAwait(false));
+                await registry.GetSSLThumbprint(cancellationToken).ConfigureAwait(false));*/
             serviceHost.Authorization.ServiceAuthorizationManager = authorizationManager;
             return serviceHost;
         }

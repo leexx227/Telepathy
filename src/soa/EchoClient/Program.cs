@@ -140,7 +140,9 @@ namespace Microsoft.Telepathy.EchoClient
             info.ServiceHangTimeout = config.ServiceHangSec == -1 ? config.ServiceHangSec : config.ServiceHangSec * 1000;
             info.UseWindowsClientCredential = config.UseWCC;
             info.UseAad = config.UseAad;
-            
+            info.UseIds = config.UseIds;
+            info.IdsUrl = config.IdsUrl;
+
             if (config.Runtime > 0)
             {
                 info.Runtime = config.Runtime;

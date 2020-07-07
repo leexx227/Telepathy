@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using IdentityModel;
+
 namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SessionLaunchers.AzureBatch
 {
     using System;
@@ -11,8 +13,8 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SessionLaunchers.Az
     using System.Linq;
     using System.Net;
     using System.Security;
+    using System.Security.Claims;
     using System.Threading.Tasks;
-
     using Microsoft.Azure.Batch;
     using Microsoft.Azure.Batch.Common;
     using Microsoft.Telepathy.Common;
@@ -562,6 +564,11 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SessionLaunchers.Az
                                                                          { BrokerSettingsConstants.TransportScheme, ((int)startInfo.TransportScheme).ToString() },
                                                                          { BrokerSettingsConstants.UseAzureQueue, (startInfo.UseAzureQueue == true).ToString() },
                                                                      };
+                        if (startInfo.UseIds)
+                        {
+                            jobMetadata.Add(BrokerSettingsConstants.OwnerId, ClaimsPrincipal.Current.FindFirst(JwtClaimTypes.Subject).Value);
+                        }
+                        
                         if (startInfo.ServiceVersion != null)
                         {
                             jobMetadata.Add(BrokerSettingsConstants.ServiceVersion, startInfo.ServiceVersion?.ToString());

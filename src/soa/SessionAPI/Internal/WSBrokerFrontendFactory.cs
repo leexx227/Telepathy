@@ -14,6 +14,7 @@ namespace Microsoft.Telepathy.Session.Internal
     using Microsoft.Telepathy.Session.Common;
     using Microsoft.Telepathy.Session.Interface;
     using Microsoft.Telepathy.Session.Internal.AzureQueue;
+    using Microsoft.Telepathy.IdentityUtil;
 
     /// <summary>
     /// Broker frontend factory to build proxy to communicate to broker
@@ -852,6 +853,10 @@ namespace Microsoft.Telepathy.Session.Internal
                             new InstanceContext(this.ResponseCallback));
                             this.SetClientCredential(responseClient);
 
+                        if (this.info.UseIds)
+                        {
+                            responseClient.Endpoint.Behaviors.AddBehaviorForWinAuthClient(this.info.IdsUrl, IdentityUtil.BrokerWorkerApi).GetAwaiter().GetResult();
+                        }
 
                         client = responseClient;
                         break;
@@ -862,6 +867,11 @@ namespace Microsoft.Telepathy.Session.Internal
                             this.binding,
                             GenerateEndpointAddress(this.info.ControllerEpr, this.scheme, this.info.Secure, this.info.IsAadOrLocalUser));
                             this.SetClientCredential(controllerClient);
+
+                        if (this.info.UseIds)
+                        {
+                            controllerClient.Endpoint.Behaviors.AddBehaviorForWinAuthClient(this.info.IdsUrl, IdentityUtil.BrokerWorkerApi).GetAwaiter().GetResult();
+                        }
 
                         client = controllerClient;
                         break;

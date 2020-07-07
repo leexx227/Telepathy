@@ -17,6 +17,10 @@ namespace Microsoft.Telepathy.Session.Internal
     {
         [OperationContract]
         [FaultContract(typeof(SessionFault), Action = SessionFault.Action)]
+        Task<string> GetJobOwnerIDAsync(string sessionId);
+
+        [OperationContract]
+        [FaultContract(typeof(SessionFault), Action = SessionFault.Action)]
         Task<bool> UpdateBrokerInfoAsync(string sessionId, Dictionary<string, object> properties);
 
         [OperationContract]

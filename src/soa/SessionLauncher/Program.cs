@@ -174,6 +174,11 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher
                         SessionLauncherRuntimeConfiguration.SessionLauncherStorageConnectionString = option.AzureBatchBrokerStorageConnectionString;
                     }
 
+                    if (!string.IsNullOrEmpty(option.IdentityServerUrl))
+                    {
+                        SessionLauncherRuntimeConfiguration.IdentityServerUrl = option.IdentityServerUrl;
+                    }
+
                     if (!string.IsNullOrEmpty(option.Logging))
                     {
                         try

@@ -13,6 +13,8 @@ namespace Microsoft.Telepathy.Session.Internal
         /// </summary>
         public const string Durable = "HPC_Durable";
 
+        public const string OwnerId = "HPC_OwnerID";
+
         /// <summary>
         /// the share session setting.
         /// </summary>

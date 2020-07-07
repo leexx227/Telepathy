@@ -68,5 +68,10 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SchedulerDelegation
         {
             throw new System.NotImplementedException();
         }
+
+        public Task<string> GetJobOwnerIDAsync(string sessionId)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

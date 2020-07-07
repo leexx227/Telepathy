@@ -19,6 +19,7 @@ namespace Microsoft.Telepathy.Session
     using Microsoft.Telepathy.Session.Interface;
     using Microsoft.Telepathy.Session.Internal;
     using Microsoft.Telepathy.Session.Internal.AzureQueue;
+    using Microsoft.Telepathy.IdentityUtil;
 
     /// <summary>
     ///   <para>Provides methods that enable clients to connect to a session and 
@@ -503,6 +504,10 @@ namespace Microsoft.Telepathy.Session
             //     this.frontendFactory = new WebBrokerFrontendFactory((WebSessionInfo)this.session.Info, this.clientId, this.callbackManager);
             //     SessionBase.TraceSource.TraceInformation("[Session:{0}] BrokerClient instance created. ClientId = {1}, Scheme = {2}, DefaultSendTimeout = {3}, DefaultResponsesTimeout = {4}", this.session.Id, this.clientId, TransportScheme.WebAPI, this.defaultSendTimeout, this.defaultResponsesTimeout);
             // }
+            if (this.session.Info.UseIds)
+            {
+                this.jwtTokenCache = IdentityUtil.GetJwtTokenFromWinAuthAsync(this.session.Info.IdsUrl, IdentityUtil.BrokerWorkerApi).GetAwaiter().GetResult();
+            }
 #if !net40 && HPCPACK
             if (this.session.Info.UseAad)
             {
@@ -919,6 +924,11 @@ namespace Microsoft.Telepathy.Session
             {
                 message.Headers.Add(GenerateUserDataHeader(userData));
                 message.Headers.Add(this.clientIdHeader);
+
+                if (this.session.Info.UseIds)
+                {
+                    message.Headers.Add(new AuthMessageHeader(this.jwtTokenCache));
+                }
 
                 if (IsDurableSession(this.session))
                 {

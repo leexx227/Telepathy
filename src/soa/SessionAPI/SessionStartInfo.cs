@@ -1148,6 +1148,7 @@ namespace Microsoft.Telepathy.Session
                 }
 
                 this.data.UseAad = this.UseAad;
+                this.data.UseIds = this.UseIds;
 
                 return this.data;
             }

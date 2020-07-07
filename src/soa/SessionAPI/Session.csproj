@@ -244,6 +244,10 @@
     <Compile Include="TransportScheme.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\IdentityUtil\IdentityUtil.csproj">
+      <Project>{eb306c35-6174-407f-a9ba-756e21e38d1b}</Project>
+      <Name>IdentityUtil</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\StandaloneDataClient\StandaloneDataClient.csproj">
       <Project>{8f4412aa-a6e0-49e5-a331-1b1047e2159d}</Project>
       <Name>StandaloneDataClient</Name>
@@ -265,6 +269,9 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="IdentityModel">
+      <Version>3.10.10</Version>
+    </PackageReference>
     <PackageReference Include="System.ValueTuple">
       <Version>4.5.0</Version>
     </PackageReference>

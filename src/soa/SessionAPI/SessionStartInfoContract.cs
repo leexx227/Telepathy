@@ -334,6 +334,9 @@ namespace Microsoft.Telepathy.Session
         [DataMember(IsRequired = false)]
         public bool UseAad = false;
 
+        [DataMember(IsRequired = false)]
+        public bool UseIds = false;
+
         /// <summary>
         /// specify if to use AAD or local user credential
         /// </summary>

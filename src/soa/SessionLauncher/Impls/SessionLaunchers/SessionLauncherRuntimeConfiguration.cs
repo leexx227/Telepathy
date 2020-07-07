@@ -14,5 +14,7 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SessionLaunchers
         internal static bool OpenAzureStorageListener => !string.IsNullOrEmpty(SessionLauncherStorageConnectionString);
 
         internal static string SessionLauncherStorageConnectionString { get; set; }
+
+        internal static string IdentityServerUrl { get; set; }
     }
 }

@@ -237,6 +237,11 @@ namespace Microsoft.Telepathy.ServiceBroker.Common.SchedulerAdapter
             {
                 return Task.FromResult(true);
             }
+
+            public Task<string> GetJobOwnerIDAsync(string sessionId)
+            {
+                return Task.FromResult(string.Empty);
+            }
         }
     }
 }

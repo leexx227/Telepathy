@@ -10,7 +10,7 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
     using System.ServiceModel.Channels;
     using System.Threading;
     using System.Threading.Tasks;
-
+    using Microsoft.Telepathy.IdentityUtil;
     using Microsoft.Telepathy.ServiceBroker.Common;
     using Microsoft.Telepathy.ServiceBroker.Common.ThreadHelper;
     using Microsoft.Telepathy.Session;
@@ -87,6 +87,8 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
         /// </summary>
         private SharedData sharedData;
 
+        private Lazy<IdentityServiceAuthManager> identityAuthorizationManager;
+
         /// <summary>
         /// Initializes a new instance of the FrontEndBase class
         /// </summary>
@@ -109,6 +111,7 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
             this.sharedData = sharedData;
             this.observer.OnStartThrottling += this.StartThrottling;
             this.observer.OnStopThrottling += this.StopThrottling;
+            this.identityAuthorizationManager = new Lazy<IdentityServiceAuthManager>(() => new IdentityServiceAuthManager(sharedData.BrokerInfo.IdentityServerUrl, IdentityUtil.BrokerWorkerApi));
         }
 
         /// <summary>
@@ -283,6 +286,11 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
         /// <returns>the message passes the check or not</returns>
         protected bool CheckAuth(RequestContextBase request, Message message)
         {
+            if (this.CheckIdentityMsgHeaderAndSetPrincipal(message))
+            {
+                return true;
+            }
+
             ServiceSecurityContext context = GetSecurityContextFromRequest(message);
             if (this.brokerAuth != null && !this.brokerAuth.CheckAccess(context))
             {
@@ -293,6 +301,20 @@ namespace Microsoft.Telepathy.ServiceBroker.FrontEnd
             }
 
             return true;
+        }
+
+        protected bool CheckIdentityMsgHeaderAndSetPrincipal(Message message)
+        {
+            var header = AuthMessageHeader.ReadHeader(message);
+            if (header != null)
+            {
+                if (this.identityAuthorizationManager.Value.CheckHeaderAccess(header))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -269,5 +269,45 @@ namespace Microsoft.Telepathy.Internal.SessionLauncher.Impls.SchedulerDelegation
                 throw;
             }
         }
+
+        public async Task<string> GetJobOwnerIDAsync(string sessionId)
+        {
+            try
+            {
+                using (var batchClient = AzureBatchConfiguration.GetBatchClient())
+                {
+                    TraceHelper.TraceEvent(sessionId, TraceEventType.Information, "[AzureBatchSchedulerDelegation] GetJobOwnerIDAsync...");
+
+                    var sessionJob = await batchClient.JobOperations.GetJobAsync(AzureBatchSessionJobIdConverter.ConvertToAzureBatchJobId(sessionId)).ConfigureAwait(false);
+
+                    var item = sessionJob.Metadata.Where(i => i.Name.Equals(BrokerSettingsConstants.OwnerId));
+
+                    if (item.Any())
+                    {
+                        return item.First().Value;
+                    }
+                    else
+                    {
+                        TraceHelper.TraceEvent(TraceEventType.Warning, "[AzureBatchSchedulerDelegation] not job owner property field in AzureBatch");
+                    }
+                }
+
+            }
+            catch (BatchException ex)
+            {
+                if (ex.RequestInformation != null && ex.RequestInformation.HttpStatusCode != null)
+                {
+                    if (ex.RequestInformation.HttpStatusCode == HttpStatusCode.NotFound)
+                    {
+                        TraceHelper.TraceEvent(sessionId, TraceEventType.Warning, "[AzureBatchSchedulerDelegation] Can't get job owner property because it can't be found in AzureBatch.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TraceHelper.TraceEvent(TraceEventType.Error, ex.ToString());
+            }
+            return null;
+        }
     }
 }

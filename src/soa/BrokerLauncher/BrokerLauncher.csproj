@@ -152,6 +152,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\IdentityUtil\IdentityUtil.csproj">
+      <Project>{EB306C35-6174-407F-A9BA-756E21E38D1B}</Project>
+      <Name>IdentityUtil</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\TelepathyCommon\TelepathyCommon.csproj">
       <Project>{1F7D53E1-7C00-4DE4-AD73-B0BB17BC1BFB}</Project>
       <Name>TelepathyCommon</Name>

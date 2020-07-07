@@ -31,6 +31,9 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher
         [Option("SessionAddress", HelpText = "The address of session launcher instance. Broker Launcher will start in standalone mode if SessionAddress is not set.")]
         public string SessionAddress { get; set; }
 
+        [Option("IdentityServerUrl", HelpText = "The url of identity server. Broker Launcher will work without auth manager if IdentityServerUrl is not set.")]
+        public string IdentityServerUrl { get; set; }
+
         [Option('f', "JsonFilePath", SetName = "ConfigurationFile")]
         public string JsonFilePath { get; set; }
 

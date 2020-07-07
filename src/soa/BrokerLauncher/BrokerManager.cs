@@ -676,7 +676,11 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher
 #if HPCPACK
             brokerInfo.JobOwnerSID = await this.schedulerHelper.GetJobOwnerSID(brokerInfo.SessionId);
 #endif
-
+            if (recoverInfo.StartInfo.UseIds && !string.IsNullOrEmpty(BrokerLauncherSettings.Default.IdentityServerUrl))
+            {
+                brokerInfo.JobOwnerSID = await this.schedulerHelper.GetJobOwnerSID(brokerInfo.SessionId);
+                brokerInfo.IdentityServerUrl = BrokerLauncherSettings.Default.IdentityServerUrl;
+            }
             brokerInfo.Durable = recoverInfo.Durable;
             brokerInfo.Attached = attached;
             //this is scheduler node or cluster connection string
@@ -807,7 +811,7 @@ namespace Microsoft.Telepathy.Internal.BrokerLauncher
                 }
                 else
                 {
-                    auth = new BrokerAuthorization(new SecurityIdentifier(brokerInfo.JobOwnerSID));
+                    auth = new BrokerAuthorization(brokerInfo.JobOwnerSID);
                 }
             }
 

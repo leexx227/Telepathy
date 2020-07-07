@@ -107,6 +107,15 @@ namespace Microsoft.Telepathy.Session.Interface
 
         private string azureStorageConnectionString;
 
+        private string identiyServerUrl;
+
+        [DataMember]
+        public string IdentityServerUrl
+        {
+            get { return this.identiyServerUrl; }
+            set { this.identiyServerUrl = value; }
+        }
+
         /// <summary>
         /// Gets or sets a value indicating whether the broker is started by attach
         /// </summary>
