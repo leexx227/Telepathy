@@ -4,7 +4,8 @@
 
 Microsoft Telepathy is a SOA runtime framework works in a cloud native way, enables running high-throughput and low-latency calculation workload in Azure. 
 
-## TODO
+## Current State
+We are now focusing on our new v2 design and implementation. We have pre-relased our v1.0.0.final version. 
 
 # Contributing
 
