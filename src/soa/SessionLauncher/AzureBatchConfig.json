@@ -1,8 +1,0 @@
-{
-  "AzureBatchServiceUrl": "",
-  "AzureBatchAccountName": "",
-  "AzureBatchAccountKey": "",
-  "AzureBatchPoolName": "",
-  "AzureBatchBrokerStorageConnectionString": "",
-  "BrokerLauncherExePath": ""
-}
