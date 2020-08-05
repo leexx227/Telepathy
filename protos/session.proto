@@ -1,8 +1,6 @@
 syntax = "proto3";
 
-option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
-
-package Session;
+package Microsoft.Telepathy.ProtoBuf;
 
 import "google/protobuf/empty.proto";
 
@@ -43,15 +41,8 @@ message SessionId {
 
 message SessionInfo {
   string id = 1;
-  string service_name = 2;
-  string service_version = 3;
-  bool share_session = 4;
-  bool durable = 5;
-  int32 max_service_number = 6;
-  int32 session_idle_timeout = 7;
-  int32 client_idle_timeout = 8;
-  string session_creator = 9;
-  string state = 10;
+  SessionInitInfo info = 2;
+  string state = 3;
 }
 
 message SessionClientInfo {
