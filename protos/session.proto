@@ -1,26 +1,28 @@
 syntax = "proto3";
 
-option csharp_namespace = "Session";
+option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
 
-package session;
+package Session;
+
+import "google/protobuf/empty.proto";
 
 // The session service definition.
 service Session {
 
   // Create session
-  rpc CreateSession (SessionInitInfo) returns (Session);
+  rpc CreateSession (SessionInitInfo) returns (SessionInfo);
 
   // Attach session
-  rpc AttachSession (SessionId) returns (Session);
+  rpc AttachSession (SessionId) returns (SessionInfo);
 
   // Close session
-  rpc CloseSession (SessionId) returns (Empty);
+  rpc CloseSession (SessionId) returns (google.protobuf.Empty);
 
   // Create session client queues
   rpc CreateSessionClientQueues (SessionClientInfo) returns (ClientQueueResult);
 
   // Set end of request flag for one session client
-  rpc SetClientEndOfRequest (ClientEndOfRequest) returns (Empty);
+  rpc SetClientEndOfRequest (ClientEndOfRequest) returns (google.protobuf.Empty);
 
 }
 
@@ -39,7 +41,7 @@ message SessionId {
   string id = 1;
 }
 
-message Session {
+message SessionInfo {
   string id = 1;
   string service_name = 2;
   string service_version = 3;
@@ -67,4 +69,3 @@ message ClientEndOfRequest {
   string total_request_number = 3;
 }
 
-message Empty {}

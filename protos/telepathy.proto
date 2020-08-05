@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
+
+package Telepathy;
+
+import "google/protobuf/empty.proto";
+import "session.proto";
+
+service Frontend {
+  rpc SendRequest (stream InnerRequest) returns(google.protobuf.Empty);
+  rpc EndRequests (TotalNumber) returns(google.protobuf.Empty);
+  rpc GetResponses (google.protobuf.Empty) returns (stream InnerResponse);
+}
+
+service FrontendSession
+{
+	// Create session
+	rpc CreateSession (Session.SessionInitInfo) returns (Session.SessionInfo);
+
+	// Attach session
+	rpc AttachSession (Session.SessionId) returns (Session.SessionInfo);
+
+	// Close session
+	rpc CloseSession (Session.SessionId) returns (google.protobuf.Empty);
+
+	// Create session client
+	rpc CreateSessionClient (Session.SessionClientInfo) returns (Session.ClientQueueResult);
+}
+
+message TotalNumber
+{
+  int32 number = 1;
+}
+
+message InnerRequest {
+  string serviceName = 1;
+  string methodName = 2;
+  string methodType = 3;
+  string sessionId = 4;
+  string clientId = 5;
+  string messageId = 6;
+  bytes msg = 7;
+}
+
+message InnerResponse {
+  bytes msg = 1;
+  int32 stateCode = 2;
+  string stateDetail = 3;
+  string sessionId = 4;
+  string clientId = 5;
+  string messageId = 6;
+}
