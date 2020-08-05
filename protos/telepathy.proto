@@ -1,31 +1,34 @@
 syntax = "proto3";
 
-option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
-
-package Telepathy;
+package Microsoft.Telepathy.ProtoBuf;
 
 import "google/protobuf/empty.proto";
 import "session.proto";
 
 service Frontend {
+  // Send Request by streaming
   rpc SendRequest (stream InnerRequest) returns(google.protobuf.Empty);
+  
+  // End requests and notify total number
   rpc EndRequests (TotalNumber) returns(google.protobuf.Empty);
+  
+  // Get responses by streaming
   rpc GetResponses (google.protobuf.Empty) returns (stream InnerResponse);
 }
 
 service FrontendSession
 {
 	// Create session
-	rpc CreateSession (Session.SessionInitInfo) returns (Session.SessionInfo);
+	rpc CreateSession (SessionInitInfo) returns (SessionInfo);
 
 	// Attach session
-	rpc AttachSession (Session.SessionId) returns (Session.SessionInfo);
+	rpc AttachSession (SessionId) returns (SessionInfo);
 
 	// Close session
-	rpc CloseSession (Session.SessionId) returns (google.protobuf.Empty);
+	rpc CloseSession (SessionId) returns (google.protobuf.Empty);
 
 	// Create session client
-	rpc CreateSessionClient (Session.SessionClientInfo) returns (Session.ClientQueueResult);
+	rpc CreateSessionClient (SessionClientInfo) returns (ClientQueueResult);
 }
 
 message TotalNumber
@@ -36,7 +39,7 @@ message TotalNumber
 message InnerRequest {
   string serviceName = 1;
   string methodName = 2;
-  string methodType = 3;
+  MethodEnum methodType = 3;
   string sessionId = 4;
   string clientId = 5;
   string messageId = 6;
@@ -50,4 +53,11 @@ message InnerResponse {
   string sessionId = 4;
   string clientId = 5;
   string messageId = 6;
+}
+
+enum MethodEnum {
+  Unary = 0;
+  ClientStream = 1;
+  ServerStream = 2;
+  DuplexStream =3;
 }
