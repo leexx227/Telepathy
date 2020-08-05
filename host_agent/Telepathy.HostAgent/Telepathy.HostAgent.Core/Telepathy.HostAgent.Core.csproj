@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>Microsoft.Telepathy.HostAgent.Core</AssemblyName>
+    <RootNamespace>Microsoft.Telepathy.HostAgent.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Telepathy.HostAgent.Common\Telepathy.HostAgent.Common.csproj" />
+    <ProjectReference Include="..\Telepathy.HostAgent.Interface\Telepathy.HostAgent.Interface.csproj" />
+  </ItemGroup>
+
+</Project>
