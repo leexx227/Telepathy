@@ -1,11 +1,8 @@
-﻿#region
-
+﻿
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Google.Protobuf;
-
-#endregion
 
 namespace Microsoft.Telepathy.ClientAPI
 {

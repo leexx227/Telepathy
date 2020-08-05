@@ -6,4 +6,23 @@
     <RootNamespace>Microsoft.Telepathy.EchoClient</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ClientAPI\ClientAPI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Protos\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools" Version="2.30.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProtoBuf Include="..\..\protos\echo.proto" Link="Protos\echo.proto" />
+  </ItemGroup>
+
 </Project>

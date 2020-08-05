@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
@@ -12,7 +13,7 @@ using Google.Protobuf.WellKnownTypes;
 namespace Microsoft.Telepathy.ClientAPI
 {
 
-    public class SessionClient
+    public class SessionClient : IDisposable
     {
         private string clientId;
 
@@ -26,17 +27,47 @@ namespace Microsoft.Telepathy.ClientAPI
 
         private MethodDescriptor method;
 
-        private ConcurrentQueue<Lazy<AsyncClientStreamingCall<InnerRequest, Empty>>> RequestCallQueue = new ConcurrentQueue<Lazy<AsyncClientStreamingCall<InnerRequest, Empty>>>();
+        private MethodEnum methodtype;
+
+        private ConcurrentQueue<AsyncClientStreamingCall<InnerRequest, Empty>> RequestCallQueue = new ConcurrentQueue<AsyncClientStreamingCall<InnerRequest, Empty>>();
 
         private List<Lazy<Frontend.FrontendClient>> clients = new List<Lazy<Frontend.FrontendClient>>();
 
         private ConcurrentQueue<InnerRequest> requestCache = new ConcurrentQueue<InnerRequest>();
+
+        private int requestCallLock = 0;
+
+        private int connection;
+
+        private int streamNum;
+
+        private int totalCall = 0;
+
+        private int requestCount = 0;
 
         public SessionClient(string clientId, Session session, MethodDescriptor method, int connection = 10, int streamNum = 2)
         {
             this.clientId = clientId;
             this.method = method;
             this.session = session;
+            this.connection = connection;
+            this.streamNum = streamNum;
+
+            if (method.IsClientStreaming)
+            {
+                if (method.IsServerStreaming)
+                    methodtype = MethodEnum.DuplexStream;
+                else
+                    methodtype = MethodEnum.ClientStream;
+            }
+            else
+            {
+                if (method.IsServerStreaming)
+                    methodtype = MethodEnum.ServerStream;
+                else
+                    methodtype = MethodEnum.Unary;
+            }
+
 
             for (int i = 0; i < connection; i++)
             {
@@ -59,35 +90,77 @@ namespace Microsoft.Telepathy.ClientAPI
         }
 
         private void publish()
-        { }
+        {
+            var temp = Interlocked.Exchange(ref requestCallLock, 1);
+            if (temp == 0)
+            {
+                for (int i = 0; i < connection; i++)
+                {
+                    for (int j = 0; j < streamNum; j++)
+                    {
+                        RequestCallQueue.Enqueue(clients[i].Value.SendRequest());
+                    }
+                }
+
+                totalCall = RequestCallQueue.Count;
+            }
+
+            int count = 0;
+            while (count < totalCall && RequestCallQueue.TryDequeue(out var callItem))
+            {
+                count++;
+                var call = callItem;
+                Task.Run(async () =>
+                {
+                    while (requestCache.TryDequeue(out var request))
+                    {
+                        await call.RequestStream.WriteAsync(request);
+                    }
+
+                    RequestCallQueue.Enqueue(call);
+                });
+            }
+        }
 
         public void SendRequest(IMessage request)
         {
-            var inner = new InnerRequest
-                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString() };
+            this.SendRequest(request, Guid.NewGuid().ToString());
+        }
 
-            requestCache.Enqueue(inner);
-            publish();
+        public void SendRequest(IMessage request, string messageId)
+        {
+            if (request.GetType() == method.InputType.ClrType)
+            {
+                var inner = new InnerRequest
+                    { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.Id};
+
+                requestCache.Enqueue(inner);
+                Interlocked.Increment(ref requestCount);
+                publish();
+            }
+            else
+            {
+                throw new ArgumentException();
+            }
         }
 
         public async Task EndRequests()
         {
-            throw new NotImplementedException();
-            //Console.WriteLine("Begin end of request");
-            //while (requestCache.Count > 0 || RequestCallQueue.Count < callNum)
-            //{
-            //    Console.WriteLine(requestCache.Count + " " + RequestCallQueue.Count);
-            //    await Task.Delay(100);
-            //}
+            Console.WriteLine("Begin end of request");
+            while (requestCache.Count > 0 || RequestCallQueue.Count < totalCall)
+            {
+                Console.WriteLine(requestCache.Count + " " + RequestCallQueue.Count);
+                await Task.Delay(100);
+            }
 
-            //Console.WriteLine("request cache is zero");
-            //foreach (var callc in RequestCallQueue)
-            //{
-            //    await callc.Value.RequestStream.CompleteAsync();
-            //    await callc.Value.ResponseAsync;
-            //}
+            Console.WriteLine("request cache is zero");
+            foreach (var call in RequestCallQueue)
+            {
+                await call.RequestStream.CompleteAsync();
+                await call.ResponseAsync;
+            }
 
-            //await clients[0].Value.EndRequestsAsync(new TotalNumber());
+            await clients[0].Value.EndRequestsAsync(new TotalNumber());
         }
 
         public async Task<IEnumerable<TResponse>> GetResponses<TResponse>() where TResponse : IMessage<TResponse>, new()
