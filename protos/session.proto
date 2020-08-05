@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+option csharp_namespace = "Session";
+
+package session;
+
+// The session service definition.
+service Session {
+
+  // Create session
+  rpc CreateSession (SessionInitInfo) returns (Session);
+
+  // Attach session
+  rpc AttachSession (SessionId) returns (Session);
+
+  // Close session
+  rpc CloseSession (SessionId) returns (Empty);
+
+  // Create session client queues
+  rpc CreateSessionClientQueues (SessionClientInfo) returns (ClientQueueResult);
+
+  // Set end of request flag for one session client
+  rpc SetClientEndOfRequest (ClientEndOfRequest) returns (Empty);
+
+}
+
+message SessionInitInfo {
+  string service_name = 1;
+  string service_version = 2;
+  bool share_session = 3;
+  bool durable = 4;
+  int32 max_service_number = 5;
+  int32 session_idle_timeout = 6;
+  int32 client_idle_timeout = 7;
+  string session_creator = 8;
+}
+
+message SessionId {
+  string id = 1;
+}
+
+message Session {
+  string id = 1;
+  string service_name = 2;
+  string service_version = 3;
+  bool share_session = 4;
+  bool durable = 5;
+  int32 max_service_number = 6;
+  int32 session_idle_timeout = 7;
+  int32 client_idle_timeout = 8;
+  string session_creator = 9;
+  string state = 10;
+}
+
+message SessionClientInfo {
+  string session_id = 1;
+  string client_id = 2;
+}
+
+message ClientQueueResult {
+  bool is_ready = 1;
+}
+
+message ClientEndOfRequest {
+  string session_id = 1;
+  string client_id = 2;
+  string total_request_number = 3;
+}
+
+message Empty {}
