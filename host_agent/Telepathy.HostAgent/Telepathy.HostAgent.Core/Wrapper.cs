@@ -8,21 +8,21 @@ namespace Microsoft.Telepathy.HostAgent.Core
 {
     public class MessageWrapper
     {
-        byte[] msg;
+        public byte[] Msg;
 
         public MessageWrapper(ByteString input)
         {
-            msg = input.ToByteArray();
+            Msg = input.ToByteArray();
         }
 
         public MessageWrapper(byte[] input)
         {
-            msg = input;
+            Msg = input;
         }
 
         public static byte[] Serialize(MessageWrapper req)
         {
-            return req.msg;
+            return req.Msg;
         }
 
         public static MessageWrapper Deserialize(byte[] bytes)
