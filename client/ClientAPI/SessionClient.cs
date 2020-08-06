@@ -55,17 +55,11 @@ namespace Microsoft.Telepathy.ClientAPI
 
             if (method.IsClientStreaming)
             {
-                if (method.IsServerStreaming)
-                    methodtype = MethodEnum.DuplexStream;
-                else
-                    methodtype = MethodEnum.ClientStream;
+                methodtype = method.IsServerStreaming ? MethodEnum.DuplexStream : MethodEnum.ClientStream;
             }
             else
             {
-                if (method.IsServerStreaming)
-                    methodtype = MethodEnum.ServerStream;
-                else
-                    methodtype = MethodEnum.Unary;
+                methodtype = method.IsServerStreaming ? MethodEnum.ServerStream : MethodEnum.Unary;
             }
 
 
@@ -89,7 +83,7 @@ namespace Microsoft.Telepathy.ClientAPI
             throw new NotImplementedException();
         }
 
-        private void publish()
+        private void Publish()
         {
             var temp = Interlocked.Exchange(ref requestCallLock, 1);
             if (temp == 0)
@@ -136,7 +130,7 @@ namespace Microsoft.Telepathy.ClientAPI
 
                 requestCache.Enqueue(inner);
                 Interlocked.Increment(ref requestCount);
-                publish();
+                Publish();
             }
             else
             {

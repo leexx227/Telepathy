@@ -6,8 +6,13 @@ import "google/protobuf/empty.proto";
 import "session.proto";
 
 service Frontend {
+  // Send Request by streaming
   rpc SendRequest (stream InnerRequest) returns(google.protobuf.Empty);
+  
+  // End requests and notify total number
   rpc EndRequests (TotalNumber) returns(google.protobuf.Empty);
+  
+  // Get responses by streaming
   rpc GetResponses (google.protobuf.Empty) returns (stream InnerResponse);
 }
 

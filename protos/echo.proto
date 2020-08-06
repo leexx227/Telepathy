@@ -1,15 +1,15 @@
 syntax = "proto3";
 
-option csharp_namespace = "Microsoft.Telepathy.EchoService";
+package Microsoft.Telepathy.ProtoBuf;
 
-package echo;
-
-service Echoer {
+service Echo {
   rpc Echo (EchoRequest) returns (EchoReply);
 }
 
 message EchoRequest {
   string message = 1;
+  int32 delayTime = 2;
+  bytes dummydata = 3;
 }
 
 message EchoReply {

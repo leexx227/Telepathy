@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Telepathy.ClientAPI;
-using Microsoft.Telepathy.EchoService;
+using Microsoft.Telepathy.ProtoBuf;
+using Session = Microsoft.Telepathy.ClientAPI.Session;
 
 namespace Microsoft.Telepathy.EchoClient
 {
@@ -41,7 +42,7 @@ namespace Microsoft.Telepathy.EchoClient
                     {
                         for (int i = 0; i < config.NumberOfRequest; i++)
                         {
-                            client.SendRequest(new EchoRequest());
+                            client.SendRequest(new EchoRequest(null, config.MessageSizeByte, config.CallDurationMS));
                         }
 
                         await client.EndRequests();
