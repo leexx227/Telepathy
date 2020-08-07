@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
@@ -11,6 +10,7 @@ using Microsoft.Telepathy.HostAgent.Interface;
 using Microsoft.Telepathy.ProtoBuf;
 
 using Google.Protobuf.WellKnownTypes;
+using Helloworld;
 
 namespace Microsoft.Telepathy.HostAgent.Core
 {
@@ -22,15 +22,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private EnvironmentInfo environmentInfo;
 
-        private TimeSpan svcTimeout;
+        private int svcTimeoutMs;
 
-        private TimeSpan dispatcherTimeout = TimeSpan.FromMilliseconds(5000);
+        private int dispatcherTimeoutMs = 5000;
 
-        private TimeSpan defaultRetryInterval = TimeSpan.FromMilliseconds(1000);
+        private int defaultRetryIntervalMs = 1000;
 
-        private TimeSpan checkQueueLengthInterval = TimeSpan.FromMilliseconds(2000);
+        private int checkQueueLengthIntervalMs = 2000;
 
-        private TimeSpan checkQueueEmptyInterval = TimeSpan.FromMilliseconds(1000);
+        private int checkQueueEmptyIntervalMs = 1000;
 
         private int svcConcurrency;
 
@@ -47,7 +47,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         public HostAgent(EnvironmentInfo environmentInfo)
         {
             this.environmentInfo = environmentInfo;
-            this.svcTimeout = environmentInfo.SvcTimeout;
+            this.svcTimeoutMs = environmentInfo.SvcTimeoutMs;
             this.svcConcurrency = environmentInfo.SvcConcurrency;
             this.prefetchCount = environmentInfo.PrefetchCount;
 
@@ -61,6 +61,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.dispatcherClient = new Dispatcher.DispatcherClient(dispatcherChannel);
 
             this.concurrentSvcTask = new Task[this.svcConcurrency];
+
+            Console.WriteLine($"[Init]svc host name: {svcHostName}, svcport: {svcPort}, dispatcher ip: {dispatcherIp}, dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}");
         }
 
         public async Task StartAsync()
@@ -78,14 +80,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// Get inner request from dispatcher and save the request into the queue until meet the prefetch count or session closed.
         /// </summary>
         /// <returns></returns>
-
         public async Task GetRequestAsync()
         {
             var getEmptyQueueCount = 0;
             var currentRetryCount = 0;
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeout.Milliseconds));
+            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
 
-            while (true)
+            while (!this.sessionFinished)
             {
                 if (this.requestQueue.Count < this.prefetchCount)
                 {
@@ -98,17 +99,18 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     }
                     catch (RpcException e)
                     {
-                        Trace.TraceError($"[GetRequestAsync] catch exception: {e.Message.ToString()}");
+                        // if e.Status.StatusCode==xxx, this.sessionFinished = true
+                        Trace.TraceError($"[GetRequestAsync] Catch RPC exception: {e.Message}");
                         getEmptyQueueCount++;
-                        await Task.Delay(TimeSpan.FromMilliseconds(this.defaultRetryInterval.Milliseconds * currentRetryCount));
+                        await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
                     }
                     catch (Exception e)
                     {
                         if (currentRetryCount < this.maxRetries)
                         {
-                            Trace.TraceError($"[GetRequestAsync] catch exception: {e.Message.ToString()}, retry count: {currentRetryCount}");
+                            Trace.TraceError($"[GetRequestAsync] Error occured when getting request from dispatcher: {e.Message}, retry count: {currentRetryCount}");
                             currentRetryCount++;
-                            await Task.Delay(this.defaultRetryInterval);
+                            await Task.Delay(this.defaultRetryIntervalMs);
                         }
                         else
                         {
@@ -118,8 +120,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 }
                 else
                 {
-                    Trace.TraceInformation($"[GetRequestAsync] prefetch config: {this.prefetchCount}, request queue length: {this.requestQueue.Count}, prefetch request enough.");
-                    await Task.Delay(this.checkQueueLengthInterval);
+                    Trace.TraceInformation($"[GetRequestAsync] Prefetch request enough. Expected prefetch count: {this.prefetchCount}, current request queue length: {this.requestQueue.Count}.");
+                    await Task.Delay(this.checkQueueLengthIntervalMs);
                 }
             }
         }
@@ -130,7 +132,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         public async Task SendRequestToSvcAsync()
         {
-            var retry = new RetryManager(this.defaultRetryInterval, this.maxRetries);
             while (true)
             {
                 if (this.sessionFinished)
@@ -150,8 +151,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     }
                     else
                     {
-                        Trace.TraceInformation($"[SendRequestToSvc] find queue is empty.");
-                        await Task.Delay(this.checkQueueEmptyInterval);
+                        Trace.TraceInformation($"[SendRequestToSvc] Request queue is empty.");
+                        await Task.Delay(this.checkQueueEmptyIntervalMs);
                     }
                 }
             }
@@ -184,12 +185,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         break;
                     default:
                         throw new InvalidOperationException(
-                            $"[CallMethodWrapperAsync] method type invalid: {innerRequest.MethodType}");
+                            $"[CallMethodWrapperAsync] Method type invalid: {innerRequest.MethodType}");
                 }
             }
             catch (Exception e)
             {
-                Trace.TraceError($"[CallMethodWrapperAsync] error occured in CallMethodWrapperAsync: {e.Message}");
+                Trace.TraceError($"[CallMethodWrapperAsync] Error occured when handling svc host method call: {e.Message}");
                 throw;
             }
 
@@ -211,18 +212,19 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns>MessageWrapper from svc host.</returns>
         public async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerRequest innerRequest)
         {
-            var retry = new RetryManager(this.defaultRetryInterval, this.maxRetries);
+            var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var request = this.GetRequestWrapper(innerRequest);
             var method = new MethodWrapper(innerRequest.ServiceName, innerRequest.MethodName, MethodType.Unary);
 
             var result = await retry.RetryOperationAsync<MessageWrapper>(
                 async () =>
                 {
-                    return await callInvoker.AsyncUnaryCall(method.Method, null, new CallOptions(), request);
+                    var callOptions = new CallOptions(deadline:DateTime.UtcNow.AddMilliseconds(this.svcTimeoutMs));
+                    return await callInvoker.AsyncUnaryCall(method.Method, null, callOptions, request);
                 },
                 (e) =>
                 {
-                    Trace.TraceError($"[HandleUnaryCall] calling AsyncUnaryCall get exception: {e.Message}, retry count: {retry.RetryCount}");
+                    Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
             
@@ -252,21 +254,22 @@ namespace Microsoft.Telepathy.HostAgent.Core
         }
 
         /// <summary>
-        /// Call DuplexStreaming method.
+        /// Call DuplexStreaming method. The svc host side service implementation must return one and exact one result in the response stream, or this function will throw exception.
         /// </summary>
         /// <param name="callInvoker"></param>
         /// <param name="innerRequest"></param>
         /// <returns>MessageWrapper from svc host.</returns>
         public async Task<MessageWrapper> HandleDuplexStreamingCall(CallInvoker callInvoker, InnerRequest innerRequest)
         {
-            var retry = new RetryManager(this.defaultRetryInterval, this.maxRetries);
+            var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var request = this.GetRequestWrapper(innerRequest);
             var method = new MethodWrapper(innerRequest.ServiceName, innerRequest.MethodName, MethodType.DuplexStreaming);
 
             var result = await retry.RetryOperationAsync<MessageWrapper>(
                 async () =>
                 {
-                    var call = callInvoker.AsyncDuplexStreamingCall(method.Method, null, new CallOptions());
+                    var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.svcTimeoutMs));
+                    var call = callInvoker.AsyncDuplexStreamingCall(method.Method, null, callOptions);
 
                     await call.RequestStream.WriteAsync(request);
                     await call.RequestStream.CompleteAsync();
@@ -281,19 +284,19 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
                     if (responseList.Count == 0)
                     {
-                        throw new InvalidOperationException("[HandleDuplexStreamingCall] get no response from response stream.");
+                        throw new InvalidOperationException("[HandleDuplexStreamingCall] Get no response from response stream.");
                     }
 
                     if (responseList.Count > 1)
                     {
-                        throw new InvalidOperationException($"[HandleDuplexStreamingCall] response stream returns more than one response corresponding to one request. Gets {responseList.Count} responses.");
+                        throw new InvalidOperationException($"[HandleDuplexStreamingCall] Response stream returns more than one response corresponding to one request. Gets {responseList.Count} responses.");
                     }
 
                     return responseList[0];
                 },
                 (e) =>
                 {
-                    Trace.TraceError($"[HandleDuplexStreamingCall] calling HandleDuplexStreamingCall get exception: {e.Message}, retry count: {retry.RetryCount}");
+                    Trace.TraceError($"[HandleDuplexStreamingCall] Error occured when calling HandleDuplexStreamingCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
 
@@ -307,8 +310,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         public async Task SendResponseAsync(InnerResponse response)
         {
-            var retry = new RetryManager(this.defaultRetryInterval, this.maxRetries);
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeout.Milliseconds));
+            var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
+            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
 
             await retry.RetryOperationAsync<object>(
                 async () =>
@@ -318,7 +321,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 },
                 (e) =>
                 {
-                    Trace.TraceError($"[SendResponseAsync] exception occured when sending response to dispatcher: {e.Message}, retry count: {retry.RetryCount}");
+                    Trace.TraceError($"[SendResponseAsync] Error occured when sending response to dispatcher: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
         }

@@ -23,6 +23,9 @@
     <Protobuf Include="..\..\..\protos\disp.proto">
       <Link>Protos\disp.proto</Link>
     </Protobuf>
+    <Protobuf Include="..\..\..\protos\helloworld.proto">
+      <Link>Protos\helloworld.proto</Link>
+    </Protobuf>
     <Protobuf Include="..\..\..\protos\session.proto">
       <Link>Protos\session.proto</Link>
     </Protobuf>

@@ -16,13 +16,13 @@ namespace Microsoft.Telepathy.HostAgent.Common
 
         public const int InfiniteRetries = -1;
 
-        private TimeSpan currentWaitTime;
+        private int currentWaitTimeMs;
 
-        private TimeSpan nextWaitTime;
+        private int nextWaitTimeMs;
 
         private int maxRetries;
 
-        private TimeSpan defaultRetryInterval;
+        private int defaultRetryIntervalMs;
 
         private bool isIncrementalRetry;
 
@@ -39,20 +39,20 @@ namespace Microsoft.Telepathy.HostAgent.Common
 
         private int waitIncrementalFactor = 2;
 
-        public RetryManager(TimeSpan retryInterval, int maxRetries) : this(retryInterval, maxRetries, false)
+        public RetryManager(int retryIntervalMs, int maxRetries) : this(retryIntervalMs, maxRetries, false)
         {
 
         }
 
-        public RetryManager(TimeSpan retryInterval, int maxRetries, bool isIncrementalRetry)
+        public RetryManager(int retryIntervalMs, int maxRetries, bool isIncrementalRetry)
         {
-            this.defaultRetryInterval = retryInterval;
+            this.defaultRetryIntervalMs = retryIntervalMs;
             this.maxRetries = maxRetries;
             this.isIncrementalRetry = isIncrementalRetry;
             this.RetryCount = 0;
 
-            this.currentWaitTime = TimeSpan.Zero;
-            this.nextWaitTime = this.defaultRetryInterval;
+            this.currentWaitTimeMs = 0;
+            this.nextWaitTimeMs = this.defaultRetryIntervalMs;
         }
 
         public async Task<TResult> RetryOperationAsync<TResult>(OnAction<TResult> action, OnException onException)
@@ -75,6 +75,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
                     }
                     else
                     {
+                        Trace.TraceError($"[RetryManager] Execution faild with {this.RetryCount} retries.");
                         throw;
                     }
                 }
@@ -126,32 +127,32 @@ namespace Microsoft.Telepathy.HostAgent.Common
                 throw new InvalidOperationException("There are no more retry attempts remaining");
             }
 
-            this.currentWaitTime = this.nextWaitTime;
-            this.nextWaitTime = this.GetNextWaitTime();
+            this.currentWaitTimeMs = this.nextWaitTimeMs;
+            this.nextWaitTimeMs = this.GetNextWaitTime();
 
             Interlocked.Increment(ref this.retryCount);
 
-            Debug.Assert(this.currentWaitTime.Milliseconds >= 0);
-            await Task.Delay(this.currentWaitTime);
+            Debug.Assert(this.currentWaitTimeMs >= 0);
+            await Task.Delay(this.currentWaitTimeMs);
         }
 
-        public TimeSpan GetNextWaitTime()
+        public int GetNextWaitTime()
         {
             if (!this.isIncrementalRetry)
             {
-                return this.defaultRetryInterval;
+                return this.defaultRetryIntervalMs;
             }
             else
             {
-                return TimeSpan.FromMilliseconds(this.currentWaitTime.Milliseconds * this.waitIncrementalFactor);
+                return this.currentWaitTimeMs * this.waitIncrementalFactor;
             }
         }
 
         public void Reset()
         {
             this.RetryCount = 0;
-            this.currentWaitTime = TimeSpan.Zero;
-            this.nextWaitTime = this.defaultRetryInterval;
+            this.currentWaitTimeMs = 0;
+            this.nextWaitTimeMs = this.defaultRetryIntervalMs;
         }
     }
 }
