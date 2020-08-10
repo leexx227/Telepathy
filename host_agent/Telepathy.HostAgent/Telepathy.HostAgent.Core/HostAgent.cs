@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
@@ -24,7 +25,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int svcTimeoutMs;
 
-        private int dispatcherTimeoutMs = 5000;
+        private int dispatcherTimeoutMs = 3000;
 
         private int defaultRetryIntervalMs = 1000;
 
@@ -53,21 +54,56 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
             var svcHostName = environmentInfo.SvcHostName;
             var svcPort = environmentInfo.SvcPort;
-            this.svcChannel = new Channel(svcHostName + svcPort, ChannelCredentials.Insecure);
+            var svcTarget = svcHostName + ":" + svcPort;
+            this.svcChannel = new Channel(svcTarget, ChannelCredentials.Insecure);
 
             var dispatcherIp = environmentInfo.DispatcherIp;
             var dispatcherPort = environmentInfo.DispatcherPort;
-            var dispatcherChannel = new Channel(dispatcherIp + dispatcherPort, ChannelCredentials.Insecure);
+            var dispatcherTarget = dispatcherIp + ":" + dispatcherPort;
+            var dispatcherChannel = new Channel(dispatcherTarget, ChannelCredentials.Insecure);
             this.dispatcherClient = new Dispatcher.DispatcherClient(dispatcherChannel);
 
             this.concurrentSvcTask = new Task[this.svcConcurrency];
 
-            Console.WriteLine($"[Init]svc host name: {svcHostName}, svcport: {svcPort}, dispatcher ip: {dispatcherIp}, dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}");
+            if (!this.ParameterValid)
+            {
+                Trace.TraceError(
+                    $"Host agent initialization failed. Parameter invalid. Svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
+                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
+                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
+                                  $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
+                throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
+            }
+
+            Trace.TraceInformation($"[Host agent init] Svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
+                                   $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
+
+            Console.WriteLine($"[Init] Svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
+                              $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
         }
+
+        private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid &&
+                                       this.svcTimeoutMs > 0 && this.prefetchCount > 0 && this.svcConcurrency > 0;
+
+        private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName) &&
+                                       (this.environmentInfo.SvcPort > 0);
+
+        private bool DispatcherTargetValid => !string.IsNullOrEmpty(this.environmentInfo.DispatcherIp) &&
+                                              (this.environmentInfo.DispatcherPort >= 0);
 
         public async Task StartAsync()
         {
             this.GetRequestAsync();
+
+            ///////////////// test
+            //HelloRequest helloRequest = new HelloRequest { Name = "xiang" };
+            //var md = Greeter.Descriptor.FindMethodByName("SayHello");
+            //InnerRequest innerRequest = new InnerRequest { ServiceName = md.Service.FullName, MethodName = md.Name, MethodType = MethodEnum.Unary, Msg = helloRequest.ToByteString()};
+            //for (int i = 0; i < this.prefetchCount; i++)
+            //{
+            //    this.requestQueue.Enqueue(innerRequest);
+            //}
+            ////////////////
             for (var i = 0; i < this.svcConcurrency; i++)
             {
                 this.concurrentSvcTask[i] = this.SendRequestToSvcAsync();
@@ -84,7 +120,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
         {
             var getEmptyQueueCount = 0;
             var currentRetryCount = 0;
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
 
             while (!this.sessionFinished)
             {
@@ -92,17 +127,27 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     try
                     {
+                        var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
                         var request = await this.dispatcherClient.GetRequestAsync(new Empty(), callOptions);
-                        this.requestQueue.Enqueue(request);
-                        getEmptyQueueCount = 0;
-                        currentRetryCount = 0;
-                    }
-                    catch (RpcException e)
-                    {
-                        // if e.Status.StatusCode==xxx, this.sessionFinished = true
-                        Trace.TraceError($"[GetRequestAsync] Catch RPC exception: {e.Message}");
-                        getEmptyQueueCount++;
-                        await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
+                        if (request.StateCode == NewRequestSateCode.Empty)
+                        {
+                            Console.WriteLine($"Find request empty");
+                            getEmptyQueueCount++;
+                            await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
+                        }
+
+                        if (request.StateCode == NewRequestSateCode.Finish)
+                        {
+                            Console.WriteLine("Session end of request.");
+                            this.sessionFinished = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Get healthy request.");
+                            this.requestQueue.Enqueue(request.Request);
+                            getEmptyQueueCount = 0;
+                            currentRetryCount = 0;
+                        }
                     }
                     catch (Exception e)
                     {
@@ -132,22 +177,30 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         public async Task SendRequestToSvcAsync()
         {
+            var gui = Guid.NewGuid().ToString();
+            Console.WriteLine($"enter sendrequest, thread: {Thread.CurrentThread.ManagedThreadId}, guid: {gui}");
+            
             while (true)
             {
-                if (this.sessionFinished)
+                if (!this.requestQueue.IsEmpty)
                 {
-                    break;
+                    InnerRequest request;
+                    if (this.requestQueue.TryDequeue(out request))
+                    {
+                        var response = await this.CallMethodWrapperAsync(request);
+                        //////// test
+                        //var r = HelloReply.Parser.ParseFrom(response.Msg);
+                        Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
+                        ///////
+                        await SendResponseAsync(response);
+                        await Task.Delay(2000);
+                    }
                 }
                 else
                 {
-                    if (!this.requestQueue.IsEmpty)
+                    if (this.sessionFinished)
                     {
-                        InnerRequest request;
-                        if (this.requestQueue.TryDequeue(out request))
-                        {
-                            var response = await this.CallMethodWrapperAsync(request);
-                            SendResponseAsync(response);
-                        }
+                        break;
                     }
                     else
                     {
@@ -225,6 +278,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 (e) =>
                 {
                     Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
+                    Console.WriteLine($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
             
@@ -311,16 +365,17 @@ namespace Microsoft.Telepathy.HostAgent.Core
         public async Task SendResponseAsync(InnerResponse response)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
-
+            
             await retry.RetryOperationAsync<object>(
                 async () =>
                 {
+                    var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
                     await this.dispatcherClient.SendResponseAsync(response, callOptions);
                     return null;
                 },
                 (e) =>
                 {
+                    Console.WriteLine($"[SendResponseAsync] Error occured when sending response to dispatcher: {e.Message}, retry count: {retry.RetryCount}");
                     Trace.TraceError($"[SendResponseAsync] Error occured when sending response to dispatcher: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
