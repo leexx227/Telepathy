@@ -9,7 +9,7 @@ namespace Telepathy.HostAgent.Launcher
     {
         static void Main(string[] args)
         {
-            SetEnvironmentVariable();
+            //SetEnvironmentVariable();
             var parser = new EnvironmentParser();
             var environmentInfo = new EnvironmentInfo(parser);
 
