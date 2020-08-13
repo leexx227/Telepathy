@@ -16,6 +16,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string HostAgentWorkingDirVariable = "HOSTAGENT_WORKINGDIR";
         public const string SvcWorkingDirVariable = "SVC_WORKINGDIR";
         public const string SvcProgramNameVariable = "SVC_PROGRAM_NAME";
+        public const string SessionIdVariable = "SESSION_ID";
 
         public const string CsharpLanguage = "csharp";
         public const string JavaLanguage = "java";

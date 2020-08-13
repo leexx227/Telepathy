@@ -71,6 +71,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.prefetchCount; }
         }
 
+        private string sessionId;
+        /// <summary>
+        /// The id of the current session.
+        /// </summary>
+        public string SessionId
+        {
+            get { return this.sessionId; }
+        }
+
         public EnvironmentInfo(EnvironmentParser parser)
         {
             parser.TryGetEnvironmentVariable<string>(HostAgentConstants.SvcHostnameVariable, ref this.svcHostName);
@@ -80,6 +89,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             parser.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcTimeoutVariable, ref this.svcTimeoutMs);
             parser.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcConcurrencyVariable, ref this.svcConcurrency);
             parser.TryGetEnvironmentVariable<int>(HostAgentConstants.PrefetchCountVariable, ref this.prefetchCount);
+            parser.TryGetEnvironmentVariable<string>(HostAgentConstants.SessionIdVariable, ref this.sessionId);
         }
     }
 }

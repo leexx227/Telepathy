@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace Telepathy.HostAgent.ProcessWrapper
+namespace Microsoft.Telepathy.HostAgent.ProcessWrapper
 {
     class EnvironmentSetter
     {

@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Telepathy.HostAgent.ProcessWrapper
+namespace Microsoft.Telepathy.HostAgent.ProcessWrapper
 {
     class Program
     {
@@ -12,6 +12,7 @@ namespace Telepathy.HostAgent.ProcessWrapper
             SetEnvironmentVariable();
             LoadHostAgent();
             LoadSvc();
+            Console.ReadKey();
         }
 
         static void LoadHostAgent()
@@ -21,10 +22,12 @@ namespace Telepathy.HostAgent.ProcessWrapper
 
             var cmd = "dotnet";
             var workingDirectory = setter.GetEnvironmentVariable(HostAgentConstants.HostAgentWorkingDirVariable);
-            var program = @"Telepathy.HostAgent.Launcher.dll";
+            var program = @"Microsoft.Telepathy.HostAgent.Launcher.dll";
 
             var processInfo = new ProcessStartInfo(cmd, program);
             processInfo.WorkingDirectory = workingDirectory;
+
+            processInfo.EnvironmentVariables[HostAgentConstants.SvcHostnameVariable] = setter.GetEnvironmentVariable(HostAgentConstants.SvcHostnameVariable);
 
             processInfo.EnvironmentVariables[HostAgentConstants.SvcPortVariable] = setter.GetEnvironmentVariable(HostAgentConstants.SvcPortVariable);
 
@@ -32,9 +35,13 @@ namespace Telepathy.HostAgent.ProcessWrapper
 
             processInfo.EnvironmentVariables[HostAgentConstants.DispatcherPortVariable] = setter.GetEnvironmentVariable(HostAgentConstants.DispatcherPortVariable);
 
+            processInfo.EnvironmentVariables[HostAgentConstants.SvcTimeoutVariable] = setter.GetEnvironmentVariable(HostAgentConstants.SvcTimeoutVariable);
+
             processInfo.EnvironmentVariables[HostAgentConstants.SvcConcurrencyVariable] = setter.GetEnvironmentVariable(HostAgentConstants.SvcConcurrencyVariable);
 
             processInfo.EnvironmentVariables[HostAgentConstants.PrefetchCountVariable] = setter.GetEnvironmentVariable(HostAgentConstants.PrefetchCountVariable);
+
+            processInfo.EnvironmentVariables[HostAgentConstants.SessionIdVariable] = setter.GetEnvironmentVariable(HostAgentConstants.SessionIdVariable);
 
             var process = Process.Start(processInfo);
         }
@@ -42,7 +49,7 @@ namespace Telepathy.HostAgent.ProcessWrapper
         static List<string> GetHostAgentMustVariableList()
         {
             return new List<string>(){HostAgentConstants.SvcPortVariable, HostAgentConstants.DispatcherIpVariable, HostAgentConstants.DispatcherPortVariable, 
-                HostAgentConstants.HostAgentWorkingDirVariable};
+                HostAgentConstants.HostAgentWorkingDirVariable, HostAgentConstants.SessionIdVariable};
         }
 
         static void SetEnvironmentVariable()
@@ -50,11 +57,12 @@ namespace Telepathy.HostAgent.ProcessWrapper
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcPortVariable, "5001");
             Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherIpVariable, "localhost");
             Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherPortVariable, "5000");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcLanguageVariable, "python");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcOSVariable, "windows");
             Environment.SetEnvironmentVariable(HostAgentConstants.HostAgentWorkingDirVariable, @"../../../../Telepathy.HostAgent.Launcher/bin/Debug/netcoreapp3.1");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcWorkingDirVariable, @"E:/SampleTest/LoadGrpcServer/packages/server/python");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcProgramNameVariable, @"greeter_server.py");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcLanguageVariable, "csharp");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcOSVariable, "windows");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcWorkingDirVariable, @"E:/SampleTest/LoadGrpcServer/packages/server/csharp");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcProgramNameVariable, @"GreeterServer.dll");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SessionIdVariable, "123456");
 
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyVariable, "3");
             Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountVariable, "10");
@@ -69,7 +77,6 @@ namespace Telepathy.HostAgent.ProcessWrapper
             string workingDirectory = setter.GetEnvironmentVariable(HostAgentConstants.SvcWorkingDirVariable);
             string program = string.Empty;
             GetStartInfoArgs(setter, ref cmd, ref program);
-
 
             var processInfo = new ProcessStartInfo(cmd, program);
             processInfo.WorkingDirectory = workingDirectory;

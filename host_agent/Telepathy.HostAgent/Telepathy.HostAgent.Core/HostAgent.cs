@@ -11,7 +11,6 @@ using Microsoft.Telepathy.HostAgent.Interface;
 using Microsoft.Telepathy.ProtoBuf;
 
 using Google.Protobuf.WellKnownTypes;
-using Helloworld;
 
 namespace Microsoft.Telepathy.HostAgent.Core
 {
@@ -45,6 +44,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private Task[] concurrentSvcTask;
 
+        public string SessionId { get; }
+
         public HostAgent(EnvironmentInfo environmentInfo)
         {
             this.environmentInfo = environmentInfo;
@@ -64,25 +65,26 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.dispatcherClient = new Dispatcher.DispatcherClient(dispatcherChannel);
 
             this.concurrentSvcTask = new Task[this.svcConcurrency];
+            this.SessionId = environmentInfo.SessionId;
 
             if (!this.ParameterValid)
             {
                 Trace.TraceError(
-                    $"Host agent initialization failed. Parameter invalid. Svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
+                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
                     $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
-                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
+                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
                                   $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
                 throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
             }
 
-            Trace.TraceInformation($"[Host agent init] Svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
+            Trace.TraceInformation($"[Host agent init] Session id: {this.SessionId}, svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
                                    $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
 
-            Console.WriteLine($"[Init] Svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
+            Console.WriteLine($"[Host agent init] Session id: {this.SessionId}, svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
                               $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
         }
 
-        private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid &&
+        private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid && this.SessionIdValid &&
                                        this.svcTimeoutMs > 0 && this.prefetchCount > 0 && this.svcConcurrency > 0;
 
         private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName) &&
@@ -90,6 +92,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private bool DispatcherTargetValid => !string.IsNullOrEmpty(this.environmentInfo.DispatcherIp) &&
                                               (this.environmentInfo.DispatcherPort >= 0);
+
+        private bool SessionIdValid => !string.IsNullOrEmpty(this.SessionId);
 
         public async Task StartAsync()
         {
