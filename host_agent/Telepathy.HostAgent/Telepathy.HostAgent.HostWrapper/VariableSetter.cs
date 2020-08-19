@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using Microsoft.Telepathy.HostAgent.Common;
 
-namespace Microsoft.Telepathy.HostAgent.ProcessWrapper
+namespace Microsoft.Telepathy.HostAgent.HostWrapper
 {
-    class EnvironmentSetter
+    class VariableSetter
     {
         private List<string> mustNotNullVariableList;
 
-        public EnvironmentSetter(List<string> mustVariableList)
+        public VariableSetter(List<string> mustVariableList)
         {
             this.mustNotNullVariableList = mustVariableList;
         }
@@ -35,6 +36,19 @@ namespace Microsoft.Telepathy.HostAgent.ProcessWrapper
                 {
                     return null;
                 }
+            }
+        }
+
+        public static string GetFileSeparator()
+        {
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                    return HostAgentConstants.WinFilePathSeparator;
+                case PlatformID.Unix:
+                    return HostAgentConstants.UnixFilePathSeparator;
+                default:
+                    throw new NotSupportedException("Only support windows and linux OS.");
             }
         }
     }

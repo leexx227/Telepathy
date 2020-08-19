@@ -10,8 +10,7 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
         static void Main(string[] args)
         {
             //SetEnvironmentVariable();
-            var parser = new EnvironmentParser();
-            var environmentInfo = new EnvironmentInfo(parser);
+            var environmentInfo = new EnvironmentInfo();
 
             IHostAgent hostAgent = new Microsoft.Telepathy.HostAgent.Core.HostAgent(environmentInfo);
 
@@ -22,11 +21,12 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
 
         static void SetEnvironmentVariable()
         {
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcPortVariable, "5001");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyVariable, "4");
-            Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountVariable, "10");
-            Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherIpVariable, "localhost");
-            Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherPortVariable, "5000");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcPortEnvVar, "5001");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyEnvVar, "4");
+            Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountEnvVar, "10");
+            Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherIpEnvVar, "localhost");
+            Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherPortEnvVar, "5000");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SessionIdEnvVar, "123456");
         }
     }
 }

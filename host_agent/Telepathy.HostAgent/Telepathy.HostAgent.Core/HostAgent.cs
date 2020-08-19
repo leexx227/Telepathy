@@ -34,7 +34,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int svcConcurrency;
 
-        private int maxRetries = 5;
+        private int maxRetries = 1;
 
         private ConcurrentQueue<InnerRequest> requestQueue = new ConcurrentQueue<InnerRequest>();
 
@@ -97,17 +97,17 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         public async Task StartAsync()
         {
-            this.GetRequestAsync();
+            var taskList = new List<Task>();
+            try
+            {
+                this.GetRequestAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
 
-            ///////////////// test
-            //HelloRequest helloRequest = new HelloRequest { Name = "xiang" };
-            //var md = Greeter.Descriptor.FindMethodByName("SayHello");
-            //InnerRequest innerRequest = new InnerRequest { ServiceName = md.Service.FullName, MethodName = md.Name, MethodType = MethodEnum.Unary, Msg = helloRequest.ToByteString()};
-            //for (int i = 0; i < this.prefetchCount; i++)
-            //{
-            //    this.requestQueue.Enqueue(innerRequest);
-            //}
-            ////////////////
             for (var i = 0; i < this.svcConcurrency; i++)
             {
                 this.concurrentSvcTask[i] = this.SendRequestToSvcAsync();
@@ -157,12 +157,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         if (currentRetryCount < this.maxRetries)
                         {
+                            Console.WriteLine($"[GetRequestAsync] Error occured when getting request from dispatcher: {e.Message}, retry count: {currentRetryCount}");
                             Trace.TraceError($"[GetRequestAsync] Error occured when getting request from dispatcher: {e.Message}, retry count: {currentRetryCount}");
                             currentRetryCount++;
                             await Task.Delay(this.defaultRetryIntervalMs);
                         }
                         else
                         {
+                            Console.WriteLine($"[GetRequestAsync] Retry exhausted. Error occured when getting request from dispatcher: { e.Message}");
+                            Trace.TraceError($"[GetRequestAsync] Retry exhausted. Error occured when getting request from dispatcher: { e.Message}");
                             throw;
                         }
                     }
@@ -192,10 +195,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     if (this.requestQueue.TryDequeue(out request))
                     {
                         var response = await this.CallMethodWrapperAsync(request);
-                        //////// test
-                        //var r = HelloReply.Parser.ParseFrom(response.Msg);
                         Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
-                        ///////
                         await SendResponseAsync(response);
                         await Task.Delay(2000);
                     }

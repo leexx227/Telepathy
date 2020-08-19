@@ -3,16 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace Microsoft.Telepathy.HostAgent.Core
+namespace Microsoft.Telepathy.HostAgent.Common
 {
-    public class EnvironmentParser
+    public class Utility
     {
-        public EnvironmentParser()
-        {
-
-        }
-
-        public void TryGetEnvironmentVariable<T>(string variable, ref T result)
+        public static void TryGetEnvironmentVariable<T>(string variable, ref T result)
         {
             string value = Environment.GetEnvironmentVariable(variable);
             if (!string.IsNullOrEmpty(value))

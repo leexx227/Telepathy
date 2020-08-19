@@ -35,7 +35,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.dispatcherIp; }
         }
 
-        private int dispatcherPort;
+        private int dispatcherPort = 5000;
         /// <summary>
         /// The host port of dispatcher.
         /// </summary>
@@ -80,16 +80,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.sessionId; }
         }
 
-        public EnvironmentInfo(EnvironmentParser parser)
+        public EnvironmentInfo()
         {
-            parser.TryGetEnvironmentVariable<string>(HostAgentConstants.SvcHostnameVariable, ref this.svcHostName);
-            parser.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcPortVariable, ref this.svcPort);
-            parser.TryGetEnvironmentVariable<string>(HostAgentConstants.DispatcherIpVariable, ref this.dispatcherIp);
-            parser.TryGetEnvironmentVariable<int>(HostAgentConstants.DispatcherPortVariable, ref this.dispatcherPort);
-            parser.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcTimeoutVariable, ref this.svcTimeoutMs);
-            parser.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcConcurrencyVariable, ref this.svcConcurrency);
-            parser.TryGetEnvironmentVariable<int>(HostAgentConstants.PrefetchCountVariable, ref this.prefetchCount);
-            parser.TryGetEnvironmentVariable<string>(HostAgentConstants.SessionIdVariable, ref this.sessionId);
+            Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.SvcHostnameEnvVar, ref this.svcHostName);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcPortEnvVar, ref this.svcPort);
+            Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.DispatcherIpEnvVar, ref this.dispatcherIp);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.DispatcherPortEnvVar, ref this.dispatcherPort);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcTimeoutEnvVar, ref this.svcTimeoutMs);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcConcurrencyEnvVar, ref this.svcConcurrency);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.PrefetchCountEnvVar, ref this.prefetchCount);
+            Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.SessionIdEnvVar, ref this.sessionId);
         }
     }
 }
