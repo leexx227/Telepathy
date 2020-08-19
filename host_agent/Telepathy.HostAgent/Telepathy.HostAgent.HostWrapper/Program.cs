@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 
 namespace Microsoft.Telepathy.HostAgent.HostWrapper
 {
@@ -9,6 +10,8 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
     {
         private static Process svcProcess;
         private static Process hostAgentProcess;
+        private static int portStart = 5001;
+
         static void Main(string[] args)
         {
             SetEnvironmentVariable();
@@ -60,13 +63,32 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
             Console.ReadKey();
         }
 
-        static string GetAvailableSvcPort()
+        static int GetAvailableSvcPort()
         {
-            return "5001";
+            var rdn = new Random();
+            while (true)
+            {
+                int port = rdn.Next(portStart, UInt16.MaxValue);
+                if (PortAvailable(port))
+                {
+                    Console.WriteLine($"Find available port: {port}.");
+                    return port;
+                }
+            }
         }
 
-        static bool PortAvailable(string port)
+        static bool PortAvailable(int port)
         {
+            IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+            TcpConnectionInformation[] tcpConnInfoArray = ipGlobalProperties.GetActiveTcpConnections();
+            foreach (var tcpi in tcpConnInfoArray)
+            {
+                if (tcpi.LocalEndPoint.Port == port)
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 

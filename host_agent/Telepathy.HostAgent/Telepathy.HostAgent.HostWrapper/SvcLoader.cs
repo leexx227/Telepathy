@@ -66,9 +66,9 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
             this.processInfo.WorkingDirectory = workingDir;
         }
 
-        public Process LoadSvc(string svcPort)
+        public Process LoadSvc(int svcPort)
         {
-            this.processInfo.EnvironmentVariables[HostAgentConstants.SvcPortEnvVar] = svcPort;
+            this.processInfo.EnvironmentVariables[HostAgentConstants.SvcPortEnvVar] = svcPort.ToString();
             Console.WriteLine("Service info:");
             WrapperUtility.PrintProcessInfo(this.processInfo);
             try

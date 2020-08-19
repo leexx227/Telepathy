@@ -23,9 +23,9 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
             SetProcessStartInfo();
         }
 
-        public Process LoadSvc(string svcPort)
+        public Process LoadSvc(int svcPort)
         {
-            this.processInfo.EnvironmentVariables[HostAgentConstants.SvcPortEnvVar] = svcPort;
+            this.processInfo.EnvironmentVariables[HostAgentConstants.SvcPortEnvVar] = svcPort.ToString();
 
             Console.WriteLine("Host agent info:");
             WrapperUtility.PrintProcessInfo(this.processInfo);

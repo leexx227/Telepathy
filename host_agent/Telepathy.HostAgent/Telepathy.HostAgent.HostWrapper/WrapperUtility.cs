@@ -27,7 +27,10 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
             Console.WriteLine($"FileName: {processInfo.FileName}, Args: {processInfo.Arguments}");
             foreach (var key in processInfo.Environment.Keys)
             {
-                Console.WriteLine($"Environment Variable {key} = {processInfo.EnvironmentVariables[key]}");
+                if (key.Contains("TELEPATHY"))
+                {
+                    Console.WriteLine($"Environment Variable {key} = {processInfo.EnvironmentVariables[key]}");
+                }
             }
         }
 
