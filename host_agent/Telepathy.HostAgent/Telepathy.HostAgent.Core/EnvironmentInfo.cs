@@ -17,14 +17,14 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.svcHostName; }
         }
 
-        private int svcPort;
-        /// <summary>
-        /// The host port of service.
-        /// </summary>
-        public int SvcPort
-        {
-            get { return this.svcPort; }
-        }
+        //private int svcPort;
+        ///// <summary>
+        ///// The host port of service.
+        ///// </summary>
+        //public int SvcPort
+        //{
+        //    get { return this.svcPort; }
+        //}
 
         private string dispatcherIp;
         /// <summary>
@@ -83,9 +83,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
         public EnvironmentInfo()
         {
             Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.SvcHostnameEnvVar, ref this.svcHostName);
-            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcPortEnvVar, ref this.svcPort);
+            //Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcPortEnvVar, ref this.svcPort);
             Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.DispatcherIpEnvVar, ref this.dispatcherIp);
-            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.DispatcherPortEnvVar, ref this.dispatcherPort);
+            //Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.DispatcherPortEnvVar, ref this.dispatcherPort);
             Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcTimeoutEnvVar, ref this.svcTimeoutMs);
             Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcConcurrencyEnvVar, ref this.svcConcurrency);
             Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.PrefetchCountEnvVar, ref this.prefetchCount);

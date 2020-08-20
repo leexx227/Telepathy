@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -18,6 +19,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
     {
         private Dispatcher.DispatcherClient dispatcherClient;
 
+        private int svcPort;
+
         private Channel svcChannel;
 
         private EnvironmentInfo environmentInfo;
@@ -32,9 +35,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int checkQueueEmptyIntervalMs = 1000;
 
+        private int checkServiceAvailable = 2000;
+
+        private int waitForSvcAvailable = 2000;
+
         private int svcConcurrency;
 
-        private int maxRetries = 1;
+        private int maxRetries = 10;
 
         private ConcurrentQueue<InnerRequest> requestQueue = new ConcurrentQueue<InnerRequest>();
 
@@ -46,17 +53,18 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         public string SessionId { get; }
 
+        private SvcLoader svcLoader;
+
+        private Process svcProcess;
+
+        private bool isSvcAvailable = false;
+
         public HostAgent(EnvironmentInfo environmentInfo)
         {
             this.environmentInfo = environmentInfo;
             this.svcTimeoutMs = environmentInfo.SvcTimeoutMs;
             this.svcConcurrency = environmentInfo.SvcConcurrency;
             this.prefetchCount = environmentInfo.PrefetchCount;
-
-            var svcHostName = environmentInfo.SvcHostName;
-            var svcPort = environmentInfo.SvcPort;
-            var svcTarget = svcHostName + ":" + svcPort;
-            this.svcChannel = new Channel(svcTarget, ChannelCredentials.Insecure);
 
             var dispatcherIp = environmentInfo.DispatcherIp;
             var dispatcherPort = environmentInfo.DispatcherPort;
@@ -67,53 +75,68 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.concurrentSvcTask = new Task[this.svcConcurrency];
             this.SessionId = environmentInfo.SessionId;
 
+            this.svcLoader = new SvcLoader(SvcLoader.GetSvcMustVariableList());
+
             if (!this.ParameterValid)
             {
-                Trace.TraceError(
-                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
-                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
-                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, svc port: {this.environmentInfo.SvcPort}, " +
+                Trace.TraceError($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
+                                 $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
+                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, " +
                                   $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
                 throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
             }
 
-            Trace.TraceInformation($"[Host agent init] Session id: {this.SessionId}, svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
-                                   $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
-
-            Console.WriteLine($"[Host agent init] Session id: {this.SessionId}, svc host name: {svcHostName}, svc port: {svcPort}, dispatcher ip: {dispatcherIp}, " +
-                              $"dispatcher port: {dispatcherPort}, svc concurrency: {this.svcConcurrency}, prefetch: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms");
+            this.PrintInfo();
         }
 
         private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid && this.SessionIdValid &&
-                                       this.svcTimeoutMs > 0 && this.prefetchCount > 0 && this.svcConcurrency > 0;
+                                       this.svcTimeoutMs > 0 && this.prefetchCount >= 0 && this.svcConcurrency > 0;
 
-        private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName) &&
-                                       (this.environmentInfo.SvcPort > 0);
+        private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName);
 
         private bool DispatcherTargetValid => !string.IsNullOrEmpty(this.environmentInfo.DispatcherIp) &&
                                               (this.environmentInfo.DispatcherPort >= 0);
 
         private bool SessionIdValid => !string.IsNullOrEmpty(this.SessionId);
 
+        private void PrintInfo()
+        {
+            Console.WriteLine($"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
+                              $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms.");
+            Trace.TraceInformation($"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
+                                   $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms.");
+        }
+
+        /// <summary>
+        /// Start host agent service.
+        /// </summary>
+        /// <returns></returns>
         public async Task StartAsync()
         {
             var taskList = new List<Task>();
-            try
-            {
-                this.GetRequestAsync();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
+            this.LoadSvc();
+
+            taskList.Add(this.MonitorSvc());
+
+            taskList.Add(this.GetRequestAsync());
 
             for (var i = 0; i < this.svcConcurrency; i++)
             {
                 this.concurrentSvcTask[i] = this.SendRequestToSvcAsync();
             }
 
-            await Task.WhenAll(this.concurrentSvcTask);
+            var svcTask = Task.WhenAll(this.concurrentSvcTask);
+
+            while (true)
+            {
+                var t = await Task.WhenAny(taskList);
+                if (t.IsFaulted)
+                {
+                    Console.WriteLine($"Error occured: {t.Exception.Message}");
+                    throw t.Exception;
+                }
+            }
+            
         }
 
         /// <summary>
@@ -191,13 +214,20 @@ namespace Microsoft.Telepathy.HostAgent.Core
             {
                 if (!this.requestQueue.IsEmpty)
                 {
-                    InnerRequest request;
-                    if (this.requestQueue.TryDequeue(out request))
+                    if (this.isSvcAvailable)
                     {
-                        var response = await this.CallMethodWrapperAsync(request);
-                        Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
-                        await SendResponseAsync(response);
-                        await Task.Delay(2000);
+                        InnerRequest request;
+                        if (this.requestQueue.TryDequeue(out request))
+                        {
+                            var response = await this.CallMethodWrapperAsync(request);
+                            Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
+                            await SendResponseAsync(response);
+                            await Task.Delay(2000);
+                        }
+                    }
+                    else
+                    {
+                        await Task.Delay(this.waitForSvcAvailable);
                     }
                 }
                 else
@@ -394,6 +424,82 @@ namespace Microsoft.Telepathy.HostAgent.Core
             else
             {
                 throw new ArgumentNullException(nameof(innerRequest));
+            }
+        }
+
+        /// <summary>
+        /// Find an available port and use that port to start service.
+        /// </summary>
+        public void LoadSvc()
+        {
+            var port = Utility.GetAvailableSvcPort();
+            try
+            {
+                while (true)
+                {
+                    var process = this.svcLoader.LoadSvc(port);
+                    if (!process.HasExited)
+                    {
+                        this.svcProcess = process;
+                        this.svcPort = port;
+                        var svcTarget = this.environmentInfo.SvcHostName + ":" + this.svcPort;
+                        this.svcChannel = new Channel(svcTarget, ChannelCredentials.Insecure);
+                        this.isSvcAvailable = true;
+                        return;
+                    }
+                    else
+                    {
+                        if (!Utility.PortAvailable(svcPort))
+                        {
+                            Trace.TraceInformation($"Find port: {svcPort} not available. Continue to search available port.");
+                            Console.WriteLine($"Find port: {svcPort} not available. Continue to search available port.");
+                        }
+                        else
+                        {
+                            Trace.TraceError($"Starting service process failed.");
+                            Console.WriteLine($"Starting service process failed.");
+                            throw new Exception("Starting service process failed.");
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError($"Error occured when starting service process: {e.Message}");
+                Console.WriteLine($"Error occured when starting service process: {e.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Monitor service available. If service has exited, will restart the service until meet the max retry count.
+        /// </summary>
+        /// <returns></returns>
+        private async Task MonitorSvc()
+        {
+            while (true)
+            {
+                if (this.svcProcess.HasExited)
+                {
+                    this.isSvcAvailable = false;
+                    var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
+                    await retry.RetryOperationAsync<object>(
+                        () =>
+                        {
+                            this.LoadSvc();
+                            return Task.FromResult(new object());
+                        },
+                        (e) =>
+                        {
+                            Console.WriteLine(
+                                $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
+                            Trace.TraceError(
+                                $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
+                            return Task.CompletedTask;
+                        });
+                }
+
+                await Task.Delay(this.checkServiceAvailable);
             }
         }
     }

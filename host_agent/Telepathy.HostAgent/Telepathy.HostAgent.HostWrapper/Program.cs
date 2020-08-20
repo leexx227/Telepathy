@@ -11,12 +11,14 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
         private static Process svcProcess;
         private static Process hostAgentProcess;
         private static int portStart = 5001;
+        private static int maxRetries = 5;
 
         static void Main(string[] args)
         {
             SetEnvironmentVariable();
             var hostAgentLoader = new HostAgentLoader(GetHostAgentMustVariableList());
             var svcLoader = new SvcLoader(GetSvcMustVariableList());
+            var currentRetryCount = 0;
             while (true)
             {
                 var svcPort = GetAvailableSvcPort();
@@ -35,6 +37,18 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
                             Trace.TraceInformation($"Find port: {svcPort} not available. Continue to search available port.");
                             Console.WriteLine($"Find port: {svcPort} not available. Continue to search available port.");
                         }
+                        else
+                        {
+                            currentRetryCount++;
+                            Trace.TraceError($"Error occured when loading service. Retry count: {currentRetryCount}");
+                            Console.WriteLine($"Error occured when loading service. Retry count: {currentRetryCount}");
+                            if (currentRetryCount >= maxRetries)
+                            {
+                                Trace.TraceError($"Error occured when loading service. Retry count exhausted.");
+                                Console.WriteLine($"Error occured when loading service. Retry count exhausted.");
+                                throw new Exception($"Error occured when loading service.");
+                            }
+                        }
                     }
                 }
                 catch (Exception e)
@@ -46,9 +60,15 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
                     }
                     else
                     {
-                        Trace.TraceError($"Error occured: {e.Message}");
-                        Console.WriteLine($"Error occured: {e.Message}");
-                        throw;
+                        currentRetryCount++;
+                        Trace.TraceError($"Error occured: {e.Message}. Retry count: {currentRetryCount}");
+                        Console.WriteLine($"Error occured: {e.Message}. Retry count: {currentRetryCount}");
+                        if (currentRetryCount >= maxRetries)
+                        {
+                            Trace.TraceError($"Error occured: {e.Message}. Retry count exhausted.");
+                            Console.WriteLine($"Error occured: {e.Message}. Retry count exhausted.");
+                            throw;
+                        }
                     }
                 }
             }
@@ -120,6 +140,11 @@ namespace Microsoft.Telepathy.HostAgent.HostWrapper
                 HostAgentConstants.SvcLanguageEnvVar, HostAgentConstants.TelepathyWorkingDirEnvVar,
                 HostAgentConstants.SvcFullPathEnvVar
             };
+        }
+
+        static void StartSvc(HostAgentLoader hostAgentLoader, SvcLoader svcLoader)
+        {
+
         }
     }
 }
