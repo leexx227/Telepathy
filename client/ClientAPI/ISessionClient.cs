@@ -6,14 +6,14 @@ using Google.Protobuf;
 
 namespace Microsoft.Telepathy.ClientAPI
 {
-    internal interface ISessionClient : IDisposable
+    internal interface IBatchClient : IDisposable
     {
         void Close();
 
-        void SendRequest(IMessage message);
+        void SendTask(IMessage message);
 
-        Task EndRequests();
+        Task EndTasks();
 
-        Task<IEnumerable<TResponse>> GetResponses<TResponse>();
+        Task<IEnumerable<TResponse>> GetResults<TResponse>();
     }
 }

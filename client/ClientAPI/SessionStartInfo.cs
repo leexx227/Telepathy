@@ -22,6 +22,8 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public int SessionIdleTimeout { get; set; }
 
+        public int ClientConnectTimeout { get; set; }
+
         public int ClientIdleTimeout { get; set; }
 
         public int MaxServiceNum { get; set; }

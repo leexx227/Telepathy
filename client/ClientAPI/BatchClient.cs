@@ -13,7 +13,7 @@ using Google.Protobuf.WellKnownTypes;
 namespace Microsoft.Telepathy.ClientAPI
 {
 
-    public class SessionClient : IDisposable
+    public class BatchClient : IDisposable
     {
         private string clientId;
 
@@ -29,11 +29,11 @@ namespace Microsoft.Telepathy.ClientAPI
 
         private MethodEnum methodtype;
 
-        private ConcurrentQueue<AsyncClientStreamingCall<InnerRequest, Empty>> RequestCallQueue = new ConcurrentQueue<AsyncClientStreamingCall<InnerRequest, Empty>>();
+        private ConcurrentQueue<AsyncClientStreamingCall<InnerTask, Empty>> RequestCallQueue = new ConcurrentQueue<AsyncClientStreamingCall<InnerTask, Empty>>();
 
         private List<Lazy<Frontend.FrontendClient>> clients = new List<Lazy<Frontend.FrontendClient>>();
 
-        private ConcurrentQueue<InnerRequest> requestCache = new ConcurrentQueue<InnerRequest>();
+        private ConcurrentQueue<InnerTask> requestCache = new ConcurrentQueue<InnerTask>();
 
         private int requestCallLock = 0;
 
@@ -45,7 +45,13 @@ namespace Microsoft.Telepathy.ClientAPI
 
         private int requestCount = 0;
 
-        public SessionClient(string clientId, Session session, MethodDescriptor method, int connection = 10, int streamNum = 2)
+
+        public BatchClient(Session session, MethodDescriptor method, int connection = 10, int streamNum = 2) : this(
+            Guid.NewGuid().ToString(), session, method, connection, streamNum)
+        {
+        }
+
+        public BatchClient(string clientId, Session session, MethodDescriptor method, int connection = 10, int streamNum = 2)
         {
             this.clientId = clientId;
             this.method = method;
@@ -62,10 +68,24 @@ namespace Microsoft.Telepathy.ClientAPI
                 methodtype = method.IsServerStreaming ? MethodEnum.ServerStream : MethodEnum.Unary;
             }
 
+            //var credentials = CallCredentials.FromInterceptor((context, metadata) =>
+            //{
+            //    if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
+            //    {
+            //        metadata.Add("Authorization", $"Bearer {tokenResponse.AccessToken}");
+            //    }
+            //    return Task.CompletedTask;
+            //});
 
             for (int i = 0; i < connection; i++)
             {
                 var channel = GrpcChannel.ForAddress(session.TelepathyAddress);
+
+                //var channel = GrpcChannel.ForAddress(session.TelepathyAddress, new GrpcChannelOptions
+                //{
+                //    Credentials = ChannelCredentials.Create(new SslCredentials(), credentials)
+                //});
+
                 var client = new Frontend.FrontendClient(channel);
                 clients.Add(new Lazy<Frontend.FrontendClient>(() => new Frontend.FrontendClient(channel)));
             }
@@ -92,7 +112,7 @@ namespace Microsoft.Telepathy.ClientAPI
                 {
                     for (int j = 0; j < streamNum; j++)
                     {
-                        RequestCallQueue.Enqueue(clients[i].Value.SendRequest());
+                        RequestCallQueue.Enqueue(clients[i].Value.SendTask());
                     }
                 }
 
@@ -116,17 +136,17 @@ namespace Microsoft.Telepathy.ClientAPI
             }
         }
 
-        public void SendRequest(IMessage request)
+        public void SendTask(IMessage request)
         {
-            this.SendRequest(request, Guid.NewGuid().ToString());
+            this.SendTask(request, Guid.NewGuid().ToString());
         }
 
-        public void SendRequest(IMessage request, string messageId)
+        public void SendTask(IMessage request, string messageId)
         {
             if (request.GetType() == method.InputType.ClrType)
             {
-                var inner = new InnerRequest
-                    { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.Id};
+                var inner = new InnerTask
+                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.Id};
 
                 requestCache.Enqueue(inner);
                 Interlocked.Increment(ref requestCount);
@@ -138,7 +158,7 @@ namespace Microsoft.Telepathy.ClientAPI
             }
         }
 
-        public async Task EndRequests()
+        public async Task EndTasks()
         {
             Console.WriteLine("Begin end of request");
             while (requestCache.Count > 0 || RequestCallQueue.Count < totalCall)
@@ -154,12 +174,12 @@ namespace Microsoft.Telepathy.ClientAPI
                 await call.ResponseAsync;
             }
 
-            await clients[0].Value.EndRequestsAsync(new TotalNumber());
+            await clients[0].Value.EndTasksAsync(new EndTasksRequest());
         }
 
-        public async Task<IEnumerable<TResponse>> GetResponses<TResponse>() where TResponse : IMessage<TResponse>, new()
+        public async Task<IEnumerable<TResponse>> GetResults<TResponse>() where TResponse : IMessage<TResponse>, new()
         {
-            var call = clients[0].Value.GetResponses(new Empty());
+            var call = clients[0].Value.GetResults(new GetResultsRequest{ SessionId = session.SessionInfo.Id, ClientId = clientId });
             var result = new List<TResponse>();
 
             await foreach (var res in call.ResponseStream.ReadAllAsync())

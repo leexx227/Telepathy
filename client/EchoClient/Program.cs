@@ -38,16 +38,16 @@ namespace Microsoft.Telepathy.EchoClient
             {
                 using (session = await Session.CreateSession(info))
                 {
-                    using (var client = new SessionClient(Guid.NewGuid().ToString(), session, null))
+                    using (var client = new BatchClient(Guid.NewGuid().ToString(), session, Echo.Descriptor.FindMethodByName("Echo")))
                     {
                         for (int i = 0; i < config.NumberOfRequest; i++)
                         {
-                            client.SendRequest(new EchoRequest(null, config.MessageSizeByte, config.CallDurationMS));
+                            client.SendTask(new EchoRequest(null, config.MessageSizeByte, config.CallDurationMS));
                         }
 
-                        await client.EndRequests();
+                        await client.EndTasks();
 
-                        var result = await client.GetResponses<EchoReply>();
+                        var result = await client.GetResults<EchoReply>();
                     }
                 }
             }

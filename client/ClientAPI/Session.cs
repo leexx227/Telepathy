@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Telepathy.ProtoBuf;
 
@@ -9,15 +10,15 @@ namespace Microsoft.Telepathy.ClientAPI
 {
     public class Session : IDisposable
     {
-        private ProtoBuf.SessionInfo sessionInfo;
+        private SessionInfo sessionInfo;
 
-        public ProtoBuf.SessionInfo SessionInfo => sessionInfo;
+        public SessionInfo SessionInfo => sessionInfo;
 
         private string telepathyAddress;
 
         public string TelepathyAddress => telepathyAddress;
 
-        Session(ProtoBuf.SessionInfo sessionInfo, string address)
+        Session(SessionInfo sessionInfo, string address)
         {
             this.sessionInfo = sessionInfo;
             telepathyAddress = address;
@@ -32,6 +33,10 @@ namespace Microsoft.Telepathy.ClientAPI
         {
             var channel = GrpcChannel.ForAddress(telepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
+
+            //var metadata = new Metadata();
+            //metadata.Add("Authorization", $"Bearer {tokenResponse.AccessToken}");
+
             await client.CloseSessionAsync(new SessionId { Id = sessionInfo.Id });
 
             this.Dispose();
@@ -41,7 +46,7 @@ namespace Microsoft.Telepathy.ClientAPI
         {
             var channel = GrpcChannel.ForAddress(telepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
-            await client.CreateSessionClientAsync(new SessionClientInfo(){});
+            await client.CreateSessionClientAsync(new SessionClientInfo{ });
         }
 
         public static async Task<Session> CreateSession(SessionStartInfo sessionStartInfo)
