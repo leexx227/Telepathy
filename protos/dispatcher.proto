@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+import "telepathy.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "protos";
+option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
+
+message GetTaskRequest {
+    string session_id = 1;
+    // int32 waiting_time = 2; // waiting time in millisecond if there is no task.
+};
+
+enum SessionState {
+    RUNNING = 0;
+    TEMP_NO_TASK = 1;
+    END_TASK = 2;
+
+}
+
+message Task {
+    InnerRequest msg = 1;
+    string task_id = 2;
+    SessionState session_state = 3;
+    
+};
+
+message SendResultRequest {
+    string session_id = 1;
+    string task_id = 2; 
+    TaskStatus status = 3;
+    bytes result = 4;
+};
+
+
+enum TaskStatus {
+    SUCCESS = 0;
+    FAILED = 1;
+};
+
+
+service Dispatcher {
+    rpc GetTask(GetTaskRequest) returns (Task);
+    rpc SendResult(SendResultRequest) returns (google.protobuf.Empty);
+
+};
+
+
+
+
