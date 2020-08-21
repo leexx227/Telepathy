@@ -1,63 +1,32 @@
 syntax = "proto3";
 
+option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
+
 package Microsoft.Telepathy.ProtoBuf;
 
-import "google/protobuf/empty.proto";
-import "session.proto";
-
-service Frontend {
-  // Send Request by streaming
-  rpc SendRequest (stream InnerRequest) returns(google.protobuf.Empty);
-  
-  // End requests and notify total number
-  rpc EndRequests (TotalNumber) returns(google.protobuf.Empty);
-  
-  // Get responses by streaming
-  rpc GetResponses (google.protobuf.Empty) returns (stream InnerResponse);
-}
-
-service FrontendSession
-{
-	// Create session
-	rpc CreateSession (SessionInitInfo) returns (SessionInfo);
-
-	// Attach session
-	rpc AttachSession (SessionId) returns (SessionInfo);
-
-	// Close session
-	rpc CloseSession (SessionId) returns (google.protobuf.Empty);
-
-	// Create session client
-	rpc CreateSessionClient (SessionClientInfo) returns (ClientQueueResult);
-}
-
-message TotalNumber
-{
-  int32 number = 1;
-}
-
-message InnerRequest {
-  string serviceName = 1;
-  string methodName = 2;
-  MethodEnum methodType = 3;
-  string sessionId = 4;
-  string clientId = 5;
-  string messageId = 6;
+message InnerTask {
+  string service_name = 1;
+  string method_name = 2;
+  MethodEnum method_type = 3;
+  string session_id = 4;
+  string client_id = 5;
+  string message_id = 6;
   bytes msg = 7;
 }
 
-message InnerResponse {
+message InnerResult {
   bytes msg = 1;
-  int32 stateCode = 2;
-  string stateDetail = 3;
-  string sessionId = 4;
-  string clientId = 5;
-  string messageId = 6;
+  int32 state_code = 2;
+  string state_detail = 3;
+  string session_id = 4;
+  string client_id = 5;
+  string message_id = 6;
 }
 
 enum MethodEnum {
-  Unary = 0;
-  ClientStream = 1;
-  ServerStream = 2;
-  DuplexStream =3;
+  UNARY = 0;
+  CLIENT_STREAM = 1;
+  SERVER_STREAM = 2;
+  DUPLEX_STREAM =3;
 }
+

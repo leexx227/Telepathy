@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package Microsoft.Telepathy.ProtoBuf;
+
+service Echo {
+  rpc Echo (EchoRequest) returns (EchoReply);
+}
+
+message EchoRequest {
+  string message = 1;
+  int32 delayTime = 2;
+  bytes dummydata = 3;
+}
+
+message EchoReply {
+  string message = 1;
+}
