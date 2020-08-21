@@ -1,8 +1,9 @@
 syntax = "proto3";
 
+package Microsoft.Telepathy.ProtoBuf;
+
 import "telepathy.proto";
 import "google/protobuf/empty.proto";
-
 option go_package = "protos";
 option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
 
