@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
+
+package Microsoft.Telepathy.ProtoBuf;
+
+import "google/protobuf/empty.proto";
+import "session.proto";
+import "telepathy.proto";
+
+service FrontendBatch {
+  // Send Request by streaming
+  rpc SendTask (stream InnerTask) returns(google.protobuf.Empty);
+  
+  // End requests and notify total number
+  rpc EndTasks (EndTasksRequest) returns(google.protobuf.Empty);
+  
+  // Get responses by streaming
+  rpc GetResults (GetResultsRequest) returns (stream InnerResult);
+
+  rpc CloseBatch (CloseBatchClientRequest) returns (google.protobuf.Empty);
+}
+
+service FrontendSession
+{
+	// Create session
+	rpc CreateSession (CreateSessionRequest) returns (SessionReply);
+
+	// Attach session
+	rpc AttachSession (AttachSessionRequest) returns (SessionReply);
+
+	// Close session
+	rpc CloseSession (CloseSessionRequest) returns (google.protobuf.Empty);
+
+	// Create session client queues
+	rpc CreateBatchClient (CreateBatchClientRequest) returns (CreateBatchClientReply);
+
+}
+
+message GetResultsRequest {
+  string session_id = 1;
+  string client_id = 2;
+}
+
+message EndTasksRequest
+{
+  int32 number = 1;
+}
