@@ -10,15 +10,15 @@ namespace Microsoft.Telepathy.ClientAPI
 {
     public class Session : IDisposable
     {
-        private SessionInfo sessionInfo;
+        private SessionReply sessionInfo;
 
-        public SessionInfo SessionInfo => sessionInfo;
+        public SessionReply SessionInfo => sessionInfo;
 
         private string telepathyAddress;
 
         public string TelepathyAddress => telepathyAddress;
 
-        Session(SessionInfo sessionInfo, string address)
+        Session(SessionReply sessionInfo, string address)
         {
             this.sessionInfo = sessionInfo;
             telepathyAddress = address;
@@ -37,7 +37,7 @@ namespace Microsoft.Telepathy.ClientAPI
             //var metadata = new Metadata();
             //metadata.Add("Authorization", $"Bearer {tokenResponse.AccessToken}");
 
-            await client.CloseSessionAsync(new SessionId { Id = sessionInfo.Id });
+            await client.CloseSessionAsync(new CloseSessionRequest{ SessionId = sessionInfo.SessionId});
 
             this.Dispose();
         }
@@ -46,7 +46,7 @@ namespace Microsoft.Telepathy.ClientAPI
         {
             var channel = GrpcChannel.ForAddress(telepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
-            await client.CreateSessionClientAsync(new SessionClientInfo{ });
+            await client.CreateBatchClientAsync(new CreateBatchClientRequest(){ });
         }
 
         public static async Task<Session> CreateSession(SessionStartInfo sessionStartInfo)
@@ -54,7 +54,7 @@ namespace Microsoft.Telepathy.ClientAPI
             var channel = GrpcChannel.ForAddress(sessionStartInfo.TelepathyAddress);
 
             var client = new FrontendSession.FrontendSessionClient(channel);
-            var result = await client.CreateSessionAsync(new SessionInitInfo());
+            var result = await client.CreateSessionAsync(new CreateSessionRequest());
             return  new Session(result, sessionStartInfo.TelepathyAddress);
         }
 
@@ -62,7 +62,7 @@ namespace Microsoft.Telepathy.ClientAPI
         {
             var channel = GrpcChannel.ForAddress(sessionAttachInfo.TelepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
-            var result = await client.AttachSessionAsync(new SessionId {Id = sessionAttachInfo.SessionId});
+            var result = await client.AttachSessionAsync(new AttachSessionRequest{ SessionId = sessionAttachInfo.SessionId});
             return new Session(result, sessionAttachInfo.TelepathyAddress);
         }
 
@@ -70,7 +70,7 @@ namespace Microsoft.Telepathy.ClientAPI
         {
             var channel = GrpcChannel.ForAddress(address);
             var client = new FrontendSession.FrontendSessionClient(channel);
-            await client.CloseSessionAsync(new SessionId { Id = sessionId });
+            await client.CloseSessionAsync(new CloseSessionRequest { SessionId = sessionId });
         }
     }
 }

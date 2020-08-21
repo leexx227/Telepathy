@@ -8,7 +8,7 @@ import "google/protobuf/empty.proto";
 import "session.proto";
 import "telepathy.proto";
 
-service Frontend {
+service FrontendBatch {
   // Send Request by streaming
   rpc SendTask (stream InnerTask) returns(google.protobuf.Empty);
   
@@ -17,21 +17,24 @@ service Frontend {
   
   // Get responses by streaming
   rpc GetResults (GetResultsRequest) returns (stream InnerResult);
+
+  rpc CloseBatch (CloseBatchClientRequest) returns (google.protobuf.Empty);
 }
 
 service FrontendSession
 {
 	// Create session
-	rpc CreateSession (SessionInitInfo) returns (SessionInfo);
+	rpc CreateSession (CreateSessionRequest) returns (SessionReply);
 
 	// Attach session
-	rpc AttachSession (SessionId) returns (SessionInfo);
+	rpc AttachSession (AttachSessionRequest) returns (SessionReply);
 
 	// Close session
-	rpc CloseSession (SessionId) returns (google.protobuf.Empty);
+	rpc CloseSession (CloseSessionRequest) returns (google.protobuf.Empty);
 
-	// Create session client
-	rpc CreateSessionClient (SessionClientInfo) returns (ClientQueueResult);
+	// Create session client queues
+	rpc CreateBatchClient (CreateBatchClientRequest) returns (CreateBatchClientReply);
+
 }
 
 message GetResultsRequest {

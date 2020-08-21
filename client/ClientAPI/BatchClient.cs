@@ -31,7 +31,7 @@ namespace Microsoft.Telepathy.ClientAPI
 
         private ConcurrentQueue<AsyncClientStreamingCall<InnerTask, Empty>> RequestCallQueue = new ConcurrentQueue<AsyncClientStreamingCall<InnerTask, Empty>>();
 
-        private List<Lazy<Frontend.FrontendClient>> clients = new List<Lazy<Frontend.FrontendClient>>();
+        private List<Lazy<FrontendBatch.FrontendBatchClient>> clients = new List<Lazy<FrontendBatch.FrontendBatchClient>>();
 
         private ConcurrentQueue<InnerTask> requestCache = new ConcurrentQueue<InnerTask>();
 
@@ -86,8 +86,8 @@ namespace Microsoft.Telepathy.ClientAPI
                 //    Credentials = ChannelCredentials.Create(new SslCredentials(), credentials)
                 //});
 
-                var client = new Frontend.FrontendClient(channel);
-                clients.Add(new Lazy<Frontend.FrontendClient>(() => new Frontend.FrontendClient(channel)));
+                var client = new FrontendBatch.FrontendBatchClient(channel);
+                clients.Add(new Lazy<FrontendBatch.FrontendBatchClient>(() => new FrontendBatch.FrontendBatchClient(channel)));
             }
 
             session.CreateSessionClient().GetAwaiter().GetResult();

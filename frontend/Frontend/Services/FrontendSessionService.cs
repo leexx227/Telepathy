@@ -12,39 +12,39 @@ namespace Microsoft.Telepathy.Frontend.Services
     public class FrontendSessionService : FrontendSession.FrontendSessionBase
     {
 
-        public override async Task<SessionInfo> AttachSession(SessionId request, ServerCallContext context)
+        public override async Task<SessionReply> AttachSession(AttachSessionRequest request, ServerCallContext context)
         {
             var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
-            var sessionSvcClient = new Session.SessionClient(channel);
+            var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var sessionInfo = await sessionSvcClient.AttachSessionAsync(request);
 
             return sessionInfo;
         }
 
-        public override async Task<Empty> CloseSession(SessionId request, ServerCallContext context)
+        public override async Task<Empty> CloseSession(CloseSessionRequest request, ServerCallContext context)
         {
             var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
-            var sessionSvcClient = new Session.SessionClient(channel);
+            var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             await sessionSvcClient.CloseSessionAsync(request);
 
             return new Empty();
         }
 
-        public override async Task<SessionInfo> CreateSession(SessionInitInfo request, ServerCallContext context)
+        public override async Task<SessionReply> CreateSession(CreateSessionRequest request, ServerCallContext context)
         {
             Console.WriteLine("Create " + Configuration.SessionServiceAddress);
             var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
-            var sessionSvcClient = new Session.SessionClient(channel);
+            var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var sessionInfo = await sessionSvcClient.CreateSessionAsync(request);
 
             return sessionInfo;
         }
 
-        public override async Task<ClientQueueResult> CreateSessionClient(SessionClientInfo request, ServerCallContext context)
+        public override async Task<CreateBatchClientReply> CreateBatchClient(CreateBatchClientRequest request, ServerCallContext context)
         {
             var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
-            var sessionSvcClient = new Session.SessionClient(channel);
-            var result = await sessionSvcClient.CreateSessionClientQueuesAsync(request);
+            var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
+            var result = await sessionSvcClient.CreateBatchClientAsync(request);
 
             return result;
         }

@@ -44,7 +44,7 @@ namespace Microsoft.Telepathy.Frontend
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapGrpcService<FrontendService>();
+                endpoints.MapGrpcService<FrontendBatchService>();
                 endpoints.MapGrpcService<FrontendSessionService>();
 
                 endpoints.MapGet("/", async context =>

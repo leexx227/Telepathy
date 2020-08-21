@@ -10,10 +10,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 {
     using Microsoft.Telepathy.ProtoBuf;
 
-    public class FrontendService : Frontend.FrontendBase
+    public class FrontendBatchService : FrontendBatch.FrontendBatchBase
     {
-        private readonly ILogger<FrontendService> _logger;
-        public FrontendService(ILogger<FrontendService> logger)
+        private readonly ILogger<FrontendBatchService> _logger;
+        public FrontendBatchService(ILogger<FrontendBatchService> logger)
         {
             _logger = logger;
         }
@@ -31,6 +31,11 @@ namespace Microsoft.Telepathy.Frontend.Services
         public override Task<Empty> SendTask(IAsyncStreamReader<InnerTask> requestStream, ServerCallContext context)
         {
             return base.SendTask(requestStream, context);
+        }
+
+        public override Task<Empty> CloseBatch(CloseBatchClientRequest request, ServerCallContext context)
+        {
+            return base.CloseBatch(request, context);
         }
     }
 }
