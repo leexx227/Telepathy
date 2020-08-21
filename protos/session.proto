@@ -7,58 +7,72 @@ package Microsoft.Telepathy.ProtoBuf;
 import "google/protobuf/empty.proto";
 
 // The session service definition.
-service Session {
-
+service SessionManager {
   // Create session
-  rpc CreateSession (SessionInitInfo) returns (SessionInfo);
+  rpc CreateSession (CreateSessionRequest) returns (SessionReply);
 
   // Attach session
-  rpc AttachSession (SessionId) returns (SessionInfo);
+  rpc AttachSession (AttachSessionRequest) returns (SessionReply);
 
   // Close session
-  rpc CloseSession (SessionId) returns (google.protobuf.Empty);
+  rpc CloseSession (CloseSessionRequest) returns (google.protobuf.Empty);
 
   // Create session client queues
-  rpc CreateSessionClientQueues (SessionClientInfo) returns (ClientQueueResult);
+  rpc CreateBatchClient (CreateBatchClientRequest) returns (CreateBatchClientReply);
+
+  // Close session client
+  rpc CloseBatchClient (CloseBatchClientRequest) returns (google.protobuf.Empty);
 
   // Set end of request flag for one session client
-  rpc SetClientEndOfRequest (ClientEndOfRequest) returns (google.protobuf.Empty);
-
+  rpc ClientEndOfTask (ClientEndOfTaskRequest) returns (google.protobuf.Empty);
 }
 
 message SessionInitInfo {
   string service_name = 1;
   string service_version = 2;
-  bool share_session = 3;
-  bool durable = 4;
-  int32 max_service_number = 5;
-  int32 session_idle_timeout = 6;
-  int32 client_idle_timeout = 7;
-  string session_creator = 8;
+  bool durable = 3;
+  int32 max_service_instance = 4;
+  int32 session_idle_timeout = 5;
+  int32 client_idle_timeout = 6;
+  string session_creator = 7;
 }
 
-message SessionId {
-  string id = 1;
+message BatchClientIdentity {
+  string session_id = 1;
+  string client_id = 2;
+}
+message CreateSessionRequest {
+  SessionInitInfo session_init_info = 1;
 }
 
-message SessionInfo {
-  string id = 1;
+message AttachSessionRequest {
+  string session_id = 1;
+}
+
+message CloseSessionRequest{
+  string session_id = 1;
+}
+
+message SessionReply {
+  string session_id = 1;
   SessionInitInfo info = 2;
   string state = 3;
 }
 
-message SessionClientInfo {
-  string session_id = 1;
-  string client_id = 2;
+message CreateBatchClientRequest {
+  BatchClientIdentity batch_client_info = 1;
 }
 
-message ClientQueueResult {
+message CloseBatchClientRequest {
+  BatchClientIdentity batch_client_info = 1; 
+}
+
+message CreateBatchClientReply {
   bool is_ready = 1;
 }
 
-message ClientEndOfRequest {
-  string session_id = 1;
-  string client_id = 2;
-  string total_request_number = 3;
+message ClientEndOfTaskRequest {
+  BatchClientIdentity batch_client_info = 1;
+  string total_request_number = 2;
 }
 
