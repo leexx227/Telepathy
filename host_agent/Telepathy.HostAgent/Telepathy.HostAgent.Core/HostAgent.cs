@@ -41,7 +41,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int svcConcurrency;
 
-        private int maxRetries = 10;
+        private int maxRetries = 3;
 
         private ConcurrentQueue<InnerRequest> requestQueue = new ConcurrentQueue<InnerRequest>();
 
@@ -114,7 +114,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         public async Task StartAsync()
         {
             var taskList = new List<Task>();
-            this.LoadSvc();
+            await this.RetryToLoadSvc();
 
             taskList.Add(this.MonitorSvc());
 
@@ -130,13 +130,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
             while (true)
             {
                 var t = await Task.WhenAny(taskList);
+                
                 if (t.IsFaulted)
                 {
                     Console.WriteLine($"Error occured: {t.Exception.Message}");
                     throw t.Exception;
                 }
+
+                taskList.Remove(t);
             }
-            
+
         }
 
         /// <summary>
@@ -449,10 +452,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     }
                     else
                     {
-                        if (!Utility.PortAvailable(svcPort))
+                        if (!Utility.PortAvailable(port))
                         {
-                            Trace.TraceInformation($"Find port: {svcPort} not available. Continue to search available port.");
-                            Console.WriteLine($"Find port: {svcPort} not available. Continue to search available port.");
+                            Trace.TraceInformation($"Find port: {port} not available. Continue to search available port.");
+                            Console.WriteLine($"Find port: {port} not available. Continue to search available port.");
                         }
                         else
                         {
@@ -482,25 +485,30 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 if (this.svcProcess.HasExited)
                 {
                     this.isSvcAvailable = false;
-                    var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
-                    await retry.RetryOperationAsync<object>(
-                        () =>
-                        {
-                            this.LoadSvc();
-                            return Task.FromResult(new object());
-                        },
-                        (e) =>
-                        {
-                            Console.WriteLine(
-                                $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
-                            Trace.TraceError(
-                                $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
-                            return Task.CompletedTask;
-                        });
+                    await this.RetryToLoadSvc();
                 }
 
                 await Task.Delay(this.checkServiceAvailable);
             }
+        }
+
+        private async Task RetryToLoadSvc()
+        {
+            var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
+            await retry.RetryOperationAsync<object>(
+                () =>
+                {
+                    this.LoadSvc();
+                    return Task.FromResult(new object());
+                },
+                (e) =>
+                {
+                    Console.WriteLine(
+                        $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
+                    Trace.TraceError(
+                        $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
+                    return Task.CompletedTask;
+                });
         }
     }
 }

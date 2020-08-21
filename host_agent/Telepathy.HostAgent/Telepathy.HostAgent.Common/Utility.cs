@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Text;
 
@@ -85,10 +86,10 @@ namespace Microsoft.Telepathy.HostAgent.Common
         static public bool PortAvailable(int port)
         {
             IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-            TcpConnectionInformation[] tcpConnInfoArray = ipGlobalProperties.GetActiveTcpConnections();
+            IPEndPoint[] tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
             foreach (var tcpi in tcpConnInfoArray)
             {
-                if (tcpi.LocalEndPoint.Port == port)
+                if (tcpi.Port == port)
                 {
                     return false;
                 }

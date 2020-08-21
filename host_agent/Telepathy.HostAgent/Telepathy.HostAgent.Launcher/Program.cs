@@ -26,7 +26,7 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcLanguageEnvVar, "csharp");
             Environment.SetEnvironmentVariable(HostAgentConstants.SessionIdEnvVar, "123456");
             Environment.SetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar, @".\");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar, @"%TELEPATHY_WORKING_DIR%testsvc\GreeterServer.dll");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar, @"%TELEPATHY_WORKING_DIR%testsvc\csharp\GreeterServer.dll");
 
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyEnvVar, "3");
             Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountEnvVar, "10");
