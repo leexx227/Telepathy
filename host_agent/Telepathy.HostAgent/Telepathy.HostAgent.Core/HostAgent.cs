@@ -304,7 +304,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns>MessageWrapper from service.</returns>
-        public async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerRequest innerTask)
+        public async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var task = this.GetMessageWrapper(innerTask);
@@ -332,7 +332,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns></returns>
-        public async Task<MessageWrapper> HandleClientStreamingCall(CallInvoker callInvoker, InnerRequest innerTask)
+        public async Task<MessageWrapper> HandleClientStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             throw new NotSupportedException();
         }
@@ -343,7 +343,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns></returns>
-        public async Task<MessageWrapper> HandleServerStreamingCall(CallInvoker callInvoker, InnerRequest innerTask)
+        public async Task<MessageWrapper> HandleServerStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             throw new NotSupportedException();
         }
@@ -354,7 +354,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns>MessageWrapper from service.</returns>
-        public async Task<MessageWrapper> HandleDuplexStreamingCall(CallInvoker callInvoker, InnerRequest innerTask)
+        public async Task<MessageWrapper> HandleDuplexStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var task = this.GetMessageWrapper(innerTask);
@@ -422,7 +422,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 });
         }
 
-        public MessageWrapper GetMessageWrapper(InnerRequest innerTask)
+        public MessageWrapper GetMessageWrapper(InnerTask innerTask)
         {
             if (innerTask != null)
             {
