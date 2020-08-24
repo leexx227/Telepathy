@@ -11,9 +11,6 @@ using Microsoft.Telepathy.HostAgent.Common;
 using Microsoft.Telepathy.HostAgent.Interface;
 using Microsoft.Telepathy.ProtoBuf;
 
-using Google.Protobuf.WellKnownTypes;
-using TaskStatus = Microsoft.Telepathy.ProtoBuf.TaskStatus;
-
 namespace Microsoft.Telepathy.HostAgent.Core
 {
     public class HostAgent : IHostAgent
@@ -44,7 +41,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int maxRetries = 3;
 
-        private ConcurrentQueue<TaskWrapper> taskQueue = new ConcurrentQueue<TaskWrapper>();
+        private ConcurrentQueue<WrappedTask> taskQueue = new ConcurrentQueue<WrappedTask>();
 
         private int prefetchCount;
 
@@ -160,20 +157,20 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
                         var task = new GetTaskRequest(){SessionId = this.SessionId};
-                        var taskWrapper = await this.dispatcherClient.GetTaskAsync(task, callOptions);
-                        if (taskWrapper.SessionState == SessionState.TempNoTask)
+                        var taskWrapper = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
+                        if (taskWrapper.SessionState == SessionStateEnum.TempNoTask)
                         {
                             Console.WriteLine($"Find task empty");
                             getEmptyQueueCount++;
                             await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
                         }
 
-                        if (taskWrapper.SessionState == SessionState.EndTask)
+                        if (taskWrapper.SessionState == SessionStateEnum.EndTask)
                         {
                             Console.WriteLine("Task end.");
                             this.isTaskEnd = true;
                         }
-                        if(taskWrapper.SessionState == SessionState.Running)
+                        if(taskWrapper.SessionState == SessionStateEnum.Running)
                         {
                             Console.WriteLine("Get healthy task.");
                             this.taskQueue.Enqueue(taskWrapper);
@@ -221,7 +218,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (this.isSvcAvailable)
                     {
-                        TaskWrapper taskWrapper;
+                        WrappedTask taskWrapper;
                         if (this.taskQueue.TryDequeue(out taskWrapper))
                         {
                             var result = await this.CallMethodWrapperAsync(taskWrapper);
@@ -255,7 +252,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// </summary>
         /// <param name="taskWrapper"></param>
         /// <returns>SendResultRequest which should be send to dispatcher.</returns>
-        public async Task<SendResultRequest> CallMethodWrapperAsync(TaskWrapper taskWrapper)
+        public async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask taskWrapper)
         {
             var innerTask = taskWrapper.Msg;
             var callInvoker = this.svcChannel.CreateCallInvoker();
@@ -291,7 +288,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             {
                 SessionId = innerTask.SessionId,
                 MsgId = innerTask.MessageId,
-                Status = TaskStatus.Success,
+                Status = TaskStateEnum.Success,
                 Result = ByteString.CopyFrom(resultMessage.Msg)
             };
             
