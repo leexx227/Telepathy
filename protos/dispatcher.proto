@@ -12,30 +12,30 @@ message GetTaskRequest {
     string session_id = 1;
 };
 
-enum SessionState {
+enum SessionStateEnum {
     RUNNING = 0;
     TEMP_NO_TASK = 1;
     END_TASK = 2;
 }
 
-message TaskWrapper {
+message WrappedTask {
     InnerTask msg = 1;
-    SessionState session_state = 2; 
+    SessionStateEnum session_state = 2; 
 };
 
 message SendResultRequest {
     string session_id = 1;
     string msg_id = 2; // Same as that in InnerTask
-    TaskStatus status = 3;
+    TaskStateEnum status = 3;
     bytes result = 4;
 };
 
-enum TaskStatus {
+enum TaskStateEnum {
     SUCCESS = 0;
     FAILED = 1;
 };
 
 service Dispatcher {
-    rpc GetTask(GetTaskRequest) returns (TaskWrapper);
+    rpc GetWrappedTask(GetTaskRequest) returns (WrappedTask);
     rpc SendResult(SendResultRequest) returns (google.protobuf.Empty);
 };
