@@ -26,7 +26,7 @@ message WrappedTask {
 message SendResultRequest {
     string session_id = 1;
     string msg_id = 2; // Same as that in InnerTask
-    TaskStateEnum status = 3;
+    TaskStateEnum task_state = 3;
     bytes result = 4;
 };
 
