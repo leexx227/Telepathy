@@ -223,7 +223,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         {
                             var result = await this.CallMethodWrapperAsync(taskWrapper);
                             Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
-                            await SendResultAsync(result);
+                            SendResultAsync(result);
                             await Task.Delay(2000);
                         }
                     }
@@ -281,6 +281,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
             catch (Exception e)
             {
                 Trace.TraceError($"[CallMethodWrapperAsync] Error occured when handling svc host method call: {e.Message}");
+                var failedResult = new SendResultRequest()
+                {
+                    SessionId = innerTask.SessionId,
+                    MsgId = innerTask.MessageId,
+                    TaskState = TaskStateEnum.Failed
+                };
+                await this.SendResultAsync(failedResult);
                 throw;
             }
 
@@ -288,7 +295,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             {
                 SessionId = innerTask.SessionId,
                 MsgId = innerTask.MessageId,
-                Status = TaskStateEnum.Success,
+                TaskState = TaskStateEnum.Success,
                 Result = ByteString.CopyFrom(resultMessage.Msg)
             };
             
@@ -493,6 +500,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
         }
 
+        /// <summary>
+        /// Retry to load service.
+        /// </summary>
+        /// <returns></returns>
         private async Task RetryToLoadSvc()
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);

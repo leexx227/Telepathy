@@ -5,14 +5,13 @@ namespace Microsoft.Telepathy.HostAgent.Common
     public class HostAgentConstants
     {
         public const string SvcPortEnvVar = "TELEPATHY_SVC_PORT";
-        public const string SvcHostnameEnvVar = "TELEPATHY_SVC_HOSTNAME";
-        public const string DispatcherPortEnvVar = "TELEPATHY_DISPATCHER_PORT";
+        //public const string SvcHostnameEnvVar = "TELEPATHY_SVC_HOSTNAME";
+        //public const string DispatcherPortEnvVar = "TELEPATHY_DISPATCHER_PORT";
         public const string DispatcherIpEnvVar = "TELEPATHY_DISPATCHER_IP";
         public const string SvcTimeoutEnvVar = "TELEPATHY_SVC_TIMEOUT";
         public const string SvcConcurrencyEnvVar = "TELEPATHY_SVC_CONCURRENCY";
         public const string PrefetchCountEnvVar = "TELEPATHY_PREFETCH_COUNT";
         public const string SvcLanguageEnvVar = "TELEPATHY_SVC_LANGUAGE";
-        //public const string SvcOSEnvVar = "TELEPATHY_SVC_OS";
         public const string TelepathyWorkingDirEnvVar = "TELEPATHY_WORKING_DIR";
         public const string SvcFullPathEnvVar = "TELEPATHY_SVC_FULL_PATH";
         public const string SessionIdEnvVar = "TELEPATHY_SESSION_ID";
@@ -26,7 +25,6 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string PythonCommand = "python";
         public const string WinFilePathSeparator = @"\";
         public const string UnixFilePathSeparator = @"/";
-        public const string HostAgentPath = "hostagent";
 
         public const int searchPortStart = 5001;
     }

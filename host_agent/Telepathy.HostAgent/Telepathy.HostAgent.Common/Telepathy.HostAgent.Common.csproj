@@ -6,11 +6,7 @@
     <RootNamespace>Microsoft.Telepathy.HostAgent.Common</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Protos\" />
-  </ItemGroup>
-
-  <ItemGroup>
+	<ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.12.4" />
     <PackageReference Include="Grpc" Version="2.30.0" />
     <PackageReference Include="Grpc.Tools" Version="2.30.0">
@@ -21,13 +17,13 @@
 
   <ItemGroup>
     <Protobuf Include="..\..\..\protos\dispatcher.proto">
-      <Link>Protos\dispatcher.proto</Link>
+      <Link>dispatcher.proto</Link>
     </Protobuf>
     <Protobuf Include="..\..\..\protos\session.proto">
-      <Link>Protos\session.proto</Link>
+      <Link>session.proto</Link>
     </Protobuf>
     <Protobuf Include="..\..\..\protos\telepathy.proto">
-      <Link>Protos\telepathy.proto</Link>
+      <Link>telepathy.proto</Link>
     </Protobuf>
   </ItemGroup>
 
