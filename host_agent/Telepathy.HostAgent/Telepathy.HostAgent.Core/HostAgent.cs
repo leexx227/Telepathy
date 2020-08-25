@@ -223,7 +223,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         {
                             var result = await this.CallMethodWrapperAsync(taskWrapper);
                             Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
-                            SendResultAsync(result);
+                            await SendResultAsync(result);
                             await Task.Delay(2000);
                         }
                     }
@@ -287,8 +287,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     MsgId = innerTask.MessageId,
                     TaskState = TaskStateEnum.Failed
                 };
-                await this.SendResultAsync(failedResult);
-                throw;
+                //await this.SendResultAsync(failedResult);
+                //throw;
+                return failedResult;
             }
 
             var result = new SendResultRequest()
@@ -322,6 +323,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 },
                 (e) =>
                 {
+                    if (e is RpcException)
+                    {
+                        this.HandleIfPortBindError((RpcException)e);
+                    }
                     Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     Console.WriteLine($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
@@ -395,6 +400,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 },
                 (e) =>
                 {
+                    if (e is RpcException)
+                    {
+                        this.HandleIfPortBindError((RpcException)e);
+                    }
                     Trace.TraceError($"[HandleDuplexStreamingCall] Error occured when calling HandleDuplexStreamingCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
@@ -435,6 +444,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
             else
             {
                 throw new ArgumentNullException(nameof(innerTask));
+            }
+        }
+
+        private void HandleIfPortBindError(RpcException e)
+        {
+            if (e.StatusCode == StatusCode.Unavailable)
+            {
+                Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
+                Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
+                throw new InvalidOperationException($"[Host agent] Service port binding error.");
             }
         }
 
