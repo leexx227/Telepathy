@@ -157,23 +157,23 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
                         var task = new GetTaskRequest(){SessionId = this.SessionId};
-                        var taskWrapper = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
-                        if (taskWrapper.SessionState == SessionStateEnum.TempNoTask)
+                        var wrapperTask = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
+                        if (wrapperTask.SessionState == SessionStateEnum.TempNoTask)
                         {
                             Console.WriteLine($"Find task empty");
                             getEmptyQueueCount++;
                             await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
                         }
 
-                        if (taskWrapper.SessionState == SessionStateEnum.EndTask)
+                        if (wrapperTask.SessionState == SessionStateEnum.EndTask)
                         {
                             Console.WriteLine("Task end.");
                             this.isTaskEnd = true;
                         }
-                        if(taskWrapper.SessionState == SessionStateEnum.Running)
+                        if(wrapperTask.SessionState == SessionStateEnum.Running)
                         {
                             Console.WriteLine("Get healthy task.");
-                            this.taskQueue.Enqueue(taskWrapper);
+                            this.taskQueue.Enqueue(wrapperTask);
                             getEmptyQueueCount = 0;
                             currentRetryCount = 0;
                         }
@@ -218,10 +218,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (this.isSvcAvailable)
                     {
-                        WrappedTask taskWrapper;
-                        if (this.taskQueue.TryDequeue(out taskWrapper))
+                        WrappedTask wrapperTask;
+                        if (this.taskQueue.TryDequeue(out wrapperTask))
                         {
-                            var result = await this.CallMethodWrapperAsync(taskWrapper);
+                            var result = await this.CallMethodWrapperAsync(wrapperTask);
                             Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
                             await SendResultAsync(result);
                             await Task.Delay(2000);
@@ -250,11 +250,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <summary>
         /// Call svc host method using CallInvoker and build the SendResultRequest to send back to dispatcher.
         /// </summary>
-        /// <param name="taskWrapper"></param>
+        /// <param name="wrappedTask"></param>
         /// <returns>SendResultRequest which should be send to dispatcher.</returns>
-        public async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask taskWrapper)
+        public async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask wrappedTask)
         {
-            var innerTask = taskWrapper.Msg;
+            var innerTask = InnerTask.Parser.ParseFrom(wrappedTask.SerializedInnerTask);
+            
             var callInvoker = this.svcChannel.CreateCallInvoker();
             MessageWrapper resultMessage;
             try
@@ -281,23 +282,39 @@ namespace Microsoft.Telepathy.HostAgent.Core
             catch (Exception e)
             {
                 Trace.TraceError($"[CallMethodWrapperAsync] Error occured when handling svc host method call: {e.Message}");
+                var failedInnerResult = new InnerResult()
+                {
+                    StateCode = 1,
+                    StateDetail = e.Message,
+                    SessionId = innerTask.SessionId,
+                    ClientId = innerTask.ClientId,
+                    MessageId = innerTask.MessageId
+                };
                 var failedResult = new SendResultRequest()
                 {
-                    SessionId = innerTask.SessionId,
-                    MsgId = innerTask.MessageId,
-                    TaskState = TaskStateEnum.Failed
+                    SessionId = wrappedTask.SessionId,
+                    TaskId = wrappedTask.TaskId,
+                    TaskState = TaskStateEnum.Failed,
+                    SerializedInnerResult = failedInnerResult.ToByteString()
                 };
-                //await this.SendResultAsync(failedResult);
-                //throw;
                 return failedResult;
             }
 
+            var innerResult = new InnerResult()
+            {
+                Msg = ByteString.CopyFrom(resultMessage.Msg),
+                StateCode = 0,
+                StateDetail = "Success",
+                SessionId = innerTask.SessionId,
+                ClientId = innerTask.ClientId,
+                MessageId = innerTask.MessageId
+            };
             var result = new SendResultRequest()
             {
-                SessionId = innerTask.SessionId,
-                MsgId = innerTask.MessageId,
+                SessionId = wrappedTask.SessionId,
+                TaskId = wrappedTask.TaskId,
                 TaskState = TaskStateEnum.Success,
-                Result = ByteString.CopyFrom(resultMessage.Msg)
+                SerializedInnerResult = innerResult.ToByteString()
             };
             
             return result;
