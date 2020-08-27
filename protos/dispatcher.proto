@@ -8,20 +8,17 @@ import "google/protobuf/empty.proto";
 option go_package = "protos";
 option csharp_namespace = "Microsoft.Telepathy.ProtoBuf";
 
-
-
 enum SessionStateEnum {
     RUNNING = 0;
     TEMP_NO_TASK = 1;
     END_TASK = 2;
-    BATCH_NOT_READY = 3;
+    
 }
 
 enum TaskStateEnum {
     SUCCESS = 0;
     FAILED = 1;
 };
-
 
 message GetTaskRequest {
     string session_id = 1;
@@ -41,7 +38,6 @@ message SendResultRequest {
     TaskStateEnum task_state = 3;
     bytes serialized_inner_result = 4;
 };
-
 
 
 service Dispatcher {
