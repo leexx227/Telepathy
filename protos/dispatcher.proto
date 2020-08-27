@@ -12,7 +12,6 @@ enum SessionStateEnum {
     RUNNING = 0;
     TEMP_NO_TASK = 1;
     END_TASK = 2;
-    
 }
 
 enum TaskStateEnum {
@@ -28,8 +27,7 @@ message WrappedTask {
     string session_id = 1;
     string task_id = 2;
     bytes serialized_inner_task = 3;
-    SessionStateEnum session_state = 4; 
-    
+    SessionStateEnum session_state = 4;  
 };
 
 message SendResultRequest {
@@ -38,7 +36,6 @@ message SendResultRequest {
     TaskStateEnum task_state = 3;
     bytes serialized_inner_result = 4;
 };
-
 
 service Dispatcher {
     rpc GetWrappedTask(GetTaskRequest) returns (WrappedTask);
