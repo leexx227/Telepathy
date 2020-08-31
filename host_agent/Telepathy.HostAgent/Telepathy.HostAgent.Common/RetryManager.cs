@@ -55,7 +55,11 @@ namespace Microsoft.Telepathy.HostAgent.Common
             this.nextWaitTimeMs = this.defaultRetryIntervalMs;
         }
 
-        public async Task<TResult> RetryOperationAsync<TResult>(OnAction<TResult> action, OnException onException)
+        public async Task<TResult> RetryOperationAsync<TResult>(OnAction<TResult> action, OnException onException) =>
+            await this.RetryOperationAsync(action, onException, null);
+
+        public async Task<TResult> RetryOperationAsync<TResult>(OnAction<TResult> action, OnException onException,
+            Func<bool> isConditionTrue)
         {
             TResult result = default(TResult);
             while (true)
@@ -71,7 +75,8 @@ namespace Microsoft.Telepathy.HostAgent.Common
                     if (this.HasAttemptsLeft)
                     {
                         await onException(e);
-                        await this.WaitForNextAttempt();
+                        var condition = isConditionTrue == null? true : isConditionTrue();
+                        await this.WaitForNextAttempt(condition);
                     }
                     else
                     {
@@ -82,45 +87,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
             }
         }
 
-        public async Task<TResult> RetryOperationWithKnownExceptionAsync<TResult>(OnAction<TResult> action, OnException onException, Func<Exception, bool> exPredicate)
-        {
-            var currentRetryCount = 0;
-            TResult result = default(TResult);
-            while (true)
-            {
-                try
-                {
-                    result = await action();
-                    Reset();
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    if (exPredicate(ex))
-                    {
-                        Trace.TraceInformation("{0}:{1} RetryCount: {2} \n",
-                        ex.GetType(),
-                        ex.Message,
-                        currentRetryCount);
-                        await this.WaitForNextAttempt();
-                    }
-                    else
-                    {
-                        if (this.HasAttemptsLeft)
-                        {
-                            await onException(ex);
-                            await this.WaitForNextAttempt();
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                }
-            }
-        }
-
-        public async Task WaitForNextAttempt()
+        public async Task WaitForNextAttempt(bool condition)
         {
             if (!this.HasAttemptsLeft)
             {
@@ -130,7 +97,10 @@ namespace Microsoft.Telepathy.HostAgent.Common
             this.currentWaitTimeMs = this.nextWaitTimeMs;
             this.nextWaitTimeMs = this.GetNextWaitTime();
 
-            Interlocked.Increment(ref this.retryCount);
+            if (condition)
+            {
+                Interlocked.Increment(ref this.retryCount);
+            }
 
             Debug.Assert(this.currentWaitTimeMs >= 0);
             await Task.Delay(this.currentWaitTimeMs);

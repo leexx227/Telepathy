@@ -15,6 +15,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string TelepathyWorkingDirEnvVar = "TELEPATHY_WORKING_DIR";
         public const string SvcFullPathEnvVar = "TELEPATHY_SVC_FULL_PATH";
         public const string SessionIdEnvVar = "TELEPATHY_SESSION_ID";
+        public const string SvcInitTimeoutEnvVar = "TELEPATHY_SVC_INIT_TIMEOUT";
 
         public const string CsharpLanguage = "csharp";
         public const string JavaLanguage = "java";

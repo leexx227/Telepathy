@@ -71,6 +71,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.sessionId; }
         }
 
+        private int svcInitTimeoutMs = 0;
+        /// <summary>
+        /// Timeout for service initialization and preparation. The default value is 0 ms.
+        /// </summary>
+        public int SvcInitTimeoutMs
+        {
+            get { return this.svcInitTimeoutMs; }
+        }
+
         public EnvironmentInfo()
         {
             Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.DispatcherIpEnvVar, ref this.dispatcherIp);
@@ -78,6 +87,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcConcurrencyEnvVar, ref this.svcConcurrency);
             Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.PrefetchCountEnvVar, ref this.prefetchCount);
             Utility.TryGetEnvironmentVariable<string>(HostAgentConstants.SessionIdEnvVar, ref this.sessionId);
+            Utility.TryGetEnvironmentVariable<int>(HostAgentConstants.SvcInitTimeoutEnvVar, ref this.svcInitTimeoutMs);
         }
     }
 }

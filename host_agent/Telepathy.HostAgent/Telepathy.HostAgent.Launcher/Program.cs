@@ -28,8 +28,10 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
             Environment.SetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar, @".\");
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar, @"%TELEPATHY_WORKING_DIR%testsvc\csharp\GreeterServer.dll");
 
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyEnvVar, "3");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyEnvVar, "1");
             Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountEnvVar, "10");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcTimeoutEnvVar, "500");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcInitTimeoutEnvVar, "10000");
         }
     }
 }

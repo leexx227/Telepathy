@@ -33,9 +33,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int checkQueueEmptyIntervalMs = 1000;
 
-        private int checkServiceAvailable = 2000;
+        private int checkSvcAvailableIntervalMs = 2000;
 
-        private int waitForSvcAvailable = 2000;
+        private int waitForSvcAvailableIntervalMs = 2000;
 
         private int svcConcurrency;
 
@@ -57,10 +57,19 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private bool isSvcAvailable = false;
 
+        private int svcInitTimeoutMs;
+
+        private Stopwatch svcInitSw = new Stopwatch();
+
+        private int consecutiveFailedTask = 0;
+
+        private int maxConsecutiveFailedTask = 5;
+
         public HostAgent(EnvironmentInfo environmentInfo)
         {
             this.environmentInfo = environmentInfo;
             this.svcTimeoutMs = environmentInfo.SvcTimeoutMs;
+            this.svcInitTimeoutMs = environmentInfo.SvcInitTimeoutMs;
             this.svcConcurrency = environmentInfo.SvcConcurrency;
             this.prefetchCount = environmentInfo.PrefetchCount;
 
@@ -77,10 +86,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
             if (!this.ParameterValid)
             {
-                Trace.TraceError($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
-                                 $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
-                Console.WriteLine($"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, " +
-                                  $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms");
+                Trace.TraceError(
+                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
+                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms, svc init timeout: {this.svcInitTimeoutMs}ms");
+                Console.WriteLine(
+                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
+                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms, svc init timeout: {this.svcInitTimeoutMs}ms");
                 throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
             }
 
@@ -88,7 +99,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         }
 
         private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid && this.SessionIdValid &&
-                                       this.svcTimeoutMs > 0 && this.prefetchCount >= 0 && this.svcConcurrency > 0;
+                                        this.TimeoutValid && this.prefetchCount >= 0 && this.svcConcurrency > 0;
 
         private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName);
 
@@ -97,12 +108,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private bool SessionIdValid => !string.IsNullOrEmpty(this.SessionId);
 
+        private bool TimeoutValid => this.svcTimeoutMs > 0 && this.svcInitTimeoutMs >= 0;
+
         private void PrintInfo()
         {
-            Console.WriteLine($"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
-                              $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms.");
-            Trace.TraceInformation($"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
-                                   $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms.");
+            Console.WriteLine(
+                $"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
+                $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms svc init timeout: {this.svcInitTimeoutMs}ms");
+            Trace.TraceInformation(
+                $"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
+                $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms svc init timeout: {this.svcInitTimeoutMs}ms");
         }
 
         /// <summary>
@@ -229,7 +244,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     }
                     else
                     {
-                        await Task.Delay(this.waitForSvcAvailable);
+                        await Task.Delay(this.waitForSvcAvailableIntervalMs);
                     }
                 }
                 else
@@ -297,6 +312,11 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     TaskState = TaskStateEnum.Failed,
                     SerializedInnerResult = failedInnerResult.ToByteString()
                 };
+                Interlocked.Increment(ref this.consecutiveFailedTask);
+                if (this.consecutiveFailedTask > this.maxConsecutiveFailedTask)
+                {
+                    throw new Exception($"[Host agent] Service consecutively failed. ConsecutiveFailedTask:{this.consecutiveFailedTask}.");
+                }
                 return failedResult;
             }
 
@@ -316,7 +336,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 TaskState = TaskStateEnum.Success,
                 SerializedInnerResult = innerResult.ToByteString()
             };
-            
+            this.consecutiveFailedTask = 0;
+
             return result;
         }
 
@@ -342,12 +363,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandleIfPortBindError((RpcException)e);
+                        this.HandleRpcException((RpcException)e);
                     }
                     Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     Console.WriteLine($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
-                });
+                },
+                ()=>(this.IsSvcInitTimeout() && this.isSvcAvailable));
             
             return result;
         }
@@ -419,11 +441,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandleIfPortBindError((RpcException)e);
+                        this.HandleRpcException((RpcException)e);
                     }
                     Trace.TraceError($"[HandleDuplexStreamingCall] Error occured when calling HandleDuplexStreamingCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
-                });
+                },
+                () => (this.IsSvcInitTimeout() && this.isSvcAvailable));
 
             return result;
         }
@@ -464,13 +487,22 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
         }
 
-        private void HandleIfPortBindError(RpcException e)
+        private void HandleRpcException(RpcException e)
         {
-            if (e.StatusCode == StatusCode.Unavailable)
+            switch (e.StatusCode)
             {
-                Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
-                Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
-                throw new InvalidOperationException($"[Host agent] Service port binding error.");
+                case StatusCode.Unavailable:
+                    Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
+                    Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
+                    if (this.IsSvcInitTimeout())
+                    {
+                        throw new InvalidOperationException($"[Host agent] Service port binding error.");
+                    }
+                    break;
+                case StatusCode.DeadlineExceeded:
+                    Console.WriteLine($"[Host agent] Service timeout error: {e.Message}");
+                    Trace.TraceError($"[Host agent] Service timeout error: {e.Message}");
+                    break;
             }
         }
 
@@ -492,6 +524,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         var svcTarget = this.environmentInfo.SvcHostName + ":" + this.svcPort;
                         this.svcChannel = new Channel(svcTarget, ChannelCredentials.Insecure);
                         this.isSvcAvailable = true;
+                        this.svcInitSw.Start();
                         return;
                     }
                     else
@@ -529,10 +562,11 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 if (this.svcProcess.HasExited)
                 {
                     this.isSvcAvailable = false;
+                    this.svcInitSw = new Stopwatch();
                     await this.RetryToLoadSvc();
                 }
 
-                await Task.Delay(this.checkServiceAvailable);
+                await Task.Delay(this.checkSvcAvailableIntervalMs);
             }
         }
 
@@ -557,6 +591,26 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         $"[MonitorSvc] Error occured when restarting service: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 });
+        }
+
+        /// <summary>
+        /// Check if service initialization timeout.
+        /// </summary>
+        /// <returns>True if service initialization timeout.</returns>
+        private bool IsSvcInitTimeout()
+        {
+            if (!this.svcInitSw.IsRunning)
+            {
+                return true;
+            }
+
+            if (svcInitSw.ElapsedMilliseconds > this.svcInitTimeoutMs)
+            {
+                this.svcInitSw.Stop();
+                return true;
+            }
+
+            return false;
         }
     }
 }
