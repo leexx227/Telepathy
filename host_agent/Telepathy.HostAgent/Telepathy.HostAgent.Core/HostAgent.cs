@@ -309,10 +309,29 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     SessionId = wrappedTask.SessionId,
                     TaskId = wrappedTask.TaskId,
-                    TaskState = TaskStateEnum.Failed,
                     SerializedInnerResult = failedInnerResult.ToByteString()
                 };
-                Interlocked.Increment(ref this.consecutiveFailedTask);
+
+                if (e is RpcException)
+                {
+                    var ex = e as RpcException;
+                    if (ex.StatusCode == StatusCode.Unknown)
+                    {
+                        failedResult.TaskState = TaskStateEnum.Finished;
+                        this.consecutiveFailedTask = 0;
+                    }
+                    else
+                    {
+                        failedResult.TaskState = TaskStateEnum.Requeue;
+                        Interlocked.Increment(ref this.consecutiveFailedTask);
+                    }
+                }
+                else
+                {
+                    failedResult.TaskState = TaskStateEnum.Requeue;
+                    Interlocked.Increment(ref this.consecutiveFailedTask);
+                }
+
                 if (this.consecutiveFailedTask > this.maxConsecutiveFailedTask)
                 {
                     throw new Exception($"[Host agent] Service consecutively failed. ConsecutiveFailedTask:{this.consecutiveFailedTask}.");
@@ -333,7 +352,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             {
                 SessionId = wrappedTask.SessionId,
                 TaskId = wrappedTask.TaskId,
-                TaskState = TaskStateEnum.Success,
+                TaskState = TaskStateEnum.Finished,
                 SerializedInnerResult = innerResult.ToByteString()
             };
             this.consecutiveFailedTask = 0;
@@ -363,7 +382,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandleRpcException((RpcException)e);
+                        this.HandlePortBindError((RpcException)e);
                     }
                     Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     Console.WriteLine($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
@@ -441,7 +460,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandleRpcException((RpcException)e);
+                        this.HandlePortBindError((RpcException)e);
                     }
                     Trace.TraceError($"[HandleDuplexStreamingCall] Error occured when calling HandleDuplexStreamingCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
@@ -487,22 +506,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
         }
 
-        private void HandleRpcException(RpcException e)
+        private void HandlePortBindError(RpcException e)
         {
-            switch (e.StatusCode)
+            if (e.StatusCode == StatusCode.Unavailable)
             {
-                case StatusCode.Unavailable:
-                    Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
-                    Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
-                    if (this.IsSvcInitTimeout())
-                    {
-                        throw new InvalidOperationException($"[Host agent] Service port binding error.");
-                    }
-                    break;
-                case StatusCode.DeadlineExceeded:
-                    Console.WriteLine($"[Host agent] Service timeout error: {e.Message}");
-                    Trace.TraceError($"[Host agent] Service timeout error: {e.Message}");
-                    break;
+                Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
+                Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
+                if (this.IsSvcInitTimeout())
+                {
+                    throw e;
+                }
             }
         }
 

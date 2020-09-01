@@ -17,8 +17,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private string program;
 
-        private int portStart = 5001;
-
         public SvcLoader(List<string> mustNotNullVarList)
         {
             this.mustNotNullVarList = mustNotNullVarList;
