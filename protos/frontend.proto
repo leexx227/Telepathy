@@ -13,10 +13,10 @@ service FrontendBatch {
   rpc SendTask (stream InnerTask) returns(google.protobuf.Empty);
   
   // End requests and notify total number
-  rpc EndTasks (EndTasksRequest) returns(google.protobuf.Empty);
+  rpc EndTasks (ClientEndOfTaskRequest) returns(google.protobuf.Empty);
   
   // Get responses by streaming
-  rpc GetResults (GetResultsRequest) returns (stream InnerResult);
+  rpc GetResults (BatchClientIdentity) returns (stream InnerResult);
 
   rpc CloseBatch (CloseBatchClientRequest) returns (google.protobuf.Empty);
 }
@@ -37,12 +37,3 @@ service FrontendSession
 
 }
 
-message GetResultsRequest {
-  string session_id = 1;
-  string client_id = 2;
-}
-
-message EndTasksRequest
-{
-  int32 number = 1;
-}

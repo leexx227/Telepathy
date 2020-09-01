@@ -36,7 +36,7 @@ namespace Microsoft.Telepathy.EchoClient
 
             try
             {
-                using (session = await Session.CreateSession(info))
+                using (session = await Session.CreateSessionAsync(info))
                 {
                     using (var client = new BatchClient(Guid.NewGuid().ToString(), session, Echo.Descriptor.FindMethodByName("Echo")))
                     {
@@ -45,9 +45,9 @@ namespace Microsoft.Telepathy.EchoClient
                             client.SendTask(new EchoRequest(null, config.MessageSizeByte, config.CallDurationMS));
                         }
 
-                        await client.EndTasks();
+                        await client.EndTasksAsync();
 
-                        var result = await client.GetResults<EchoReply>();
+                        var result = await client.GetResultsAsync<EchoReply>();
                     }
                 }
             }
@@ -60,7 +60,7 @@ namespace Microsoft.Telepathy.EchoClient
             {
                 if (session != null)
                 {
-                    await session.Close();
+                    await session.CloseAsync();
                     session.Dispose();
                 }
             }

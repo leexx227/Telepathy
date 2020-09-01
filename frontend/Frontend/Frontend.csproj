@@ -9,6 +9,8 @@
     <PackageReference Include="Grpc.AspNetCore" Version="2.30.0">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="NsqSharp" Version="0.5.4" />
+    <PackageReference Include="StackExchange.Redis" Version="2.1.58" />
   </ItemGroup>
 
   <ItemGroup>

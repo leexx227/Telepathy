@@ -27,13 +27,15 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
         }
 
-        public async Task Close()
+        public async Task CloseAsync()
         {
             var channel = GrpcChannel.ForAddress(telepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
 
+            //TODO auth
             //var metadata = new Metadata();
             //metadata.Add("Authorization", $"Bearer {tokenResponse.AccessToken}");
 
@@ -42,14 +44,14 @@ namespace Microsoft.Telepathy.ClientAPI
             this.Dispose();
         }
 
-        public async Task CreateSessionClient()
+        public async Task CreateSessionClientAsync()
         {
             var channel = GrpcChannel.ForAddress(telepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
             await client.CreateBatchClientAsync(new CreateBatchClientRequest(){ });
         }
 
-        public static async Task<Session> CreateSession(SessionStartInfo sessionStartInfo)
+        public static async Task<Session> CreateSessionAsync(SessionStartInfo sessionStartInfo)
         {
             var channel = GrpcChannel.ForAddress(sessionStartInfo.TelepathyAddress);
 
@@ -58,7 +60,7 @@ namespace Microsoft.Telepathy.ClientAPI
             return  new Session(result, sessionStartInfo.TelepathyAddress);
         }
 
-        public static async Task<Session> AttachSession(SessionAttachInfo sessionAttachInfo)
+        public static async Task<Session> AttachSessionAsync(SessionAttachInfo sessionAttachInfo)
         {
             var channel = GrpcChannel.ForAddress(sessionAttachInfo.TelepathyAddress);
             var client = new FrontendSession.FrontendSessionClient(channel);
@@ -66,7 +68,7 @@ namespace Microsoft.Telepathy.ClientAPI
             return new Session(result, sessionAttachInfo.TelepathyAddress);
         }
 
-        public static async Task CloseSession(string sessionId, string address)
+        public static async Task CloseSessionAsync(string sessionId, string address)
         {
             var channel = GrpcChannel.ForAddress(address);
             var client = new FrontendSession.FrontendSessionClient(channel);

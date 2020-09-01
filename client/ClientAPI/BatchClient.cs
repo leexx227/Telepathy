@@ -45,6 +45,9 @@ namespace Microsoft.Telepathy.ClientAPI
 
         private int requestCount = 0;
 
+        private BatchClientIdentity batchInfo;
+
+        private int index = 0;
 
         public BatchClient(Session session, MethodDescriptor method, int connection = 10, int streamNum = 2) : this(
             Guid.NewGuid().ToString(), session, method, connection, streamNum)
@@ -58,6 +61,7 @@ namespace Microsoft.Telepathy.ClientAPI
             this.session = session;
             this.connection = connection;
             this.streamNum = streamNum;
+            this.batchInfo = new BatchClientIdentity{ SessionId = session.SessionInfo.SessionId, ClientId = clientId};
 
             if (method.IsClientStreaming)
             {
@@ -68,6 +72,7 @@ namespace Microsoft.Telepathy.ClientAPI
                 methodtype = method.IsServerStreaming ? MethodEnum.ServerStream : MethodEnum.Unary;
             }
 
+            //TODO auth
             //var credentials = CallCredentials.FromInterceptor((context, metadata) =>
             //{
             //    if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
@@ -81,6 +86,7 @@ namespace Microsoft.Telepathy.ClientAPI
             {
                 var channel = GrpcChannel.ForAddress(session.TelepathyAddress);
 
+                //TODO auth
                 //var channel = GrpcChannel.ForAddress(session.TelepathyAddress, new GrpcChannelOptions
                 //{
                 //    Credentials = ChannelCredentials.Create(new SslCredentials(), credentials)
@@ -90,17 +96,19 @@ namespace Microsoft.Telepathy.ClientAPI
                 clients.Add(new Lazy<FrontendBatch.FrontendBatchClient>(() => new FrontendBatch.FrontendBatchClient(channel)));
             }
 
-            session.CreateSessionClient().GetAwaiter().GetResult();
+            session.CreateSessionClientAsync().GetAwaiter().GetResult();
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
-            throw new NotImplementedException();
+            var client = clients[GetNextClient()];
+            await client.Value.CloseBatchAsync(new CloseBatchClientRequest {BatchClientInfo = batchInfo});
+            this.Dispose();
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            GC.SuppressFinalize(this);
         }
 
         private void Publish()
@@ -146,7 +154,7 @@ namespace Microsoft.Telepathy.ClientAPI
             if (request.GetType() == method.InputType.ClrType)
             {
                 var inner = new InnerTask
-                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.Id};
+                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.SessionId};
 
                 requestCache.Enqueue(inner);
                 Interlocked.Increment(ref requestCount);
@@ -158,7 +166,7 @@ namespace Microsoft.Telepathy.ClientAPI
             }
         }
 
-        public async Task EndTasks()
+        public async Task EndTasksAsync()
         {
             Console.WriteLine("Begin end of request");
             while (requestCache.Count > 0 || RequestCallQueue.Count < totalCall)
@@ -174,21 +182,44 @@ namespace Microsoft.Telepathy.ClientAPI
                 await call.ResponseAsync;
             }
 
-            await clients[0].Value.EndTasksAsync(new EndTasksRequest());
+            await clients[GetNextClient()].Value.EndTasksAsync(new ClientEndOfTaskRequest{BatchClientInfo = batchInfo, TotalRequestNumber = requestCount});
         }
 
-        public async Task<IEnumerable<TResponse>> GetResults<TResponse>() where TResponse : IMessage<TResponse>, new()
+        public async Task<IEnumerable<TResponse>> GetResultsAsync<TResponse>() where TResponse : IMessage<TResponse>, new()
         {
-            var call = clients[0].Value.GetResults(new GetResultsRequest{ SessionId = session.SessionInfo.Id, ClientId = clientId });
+            var call = clients[0].Value.GetResults(batchInfo);
             var result = new List<TResponse>();
+
+            int faultCount = 0;
+            var stringList = new List<string>();
 
             await foreach (var res in call.ResponseStream.ReadAllAsync())
             {
-                var v = new MessageParser<TResponse>(() => new TResponse());
-                result.Add(v.ParseFrom(res.Msg));
+                if (res.StateCode == 0)
+                {
+                    var v = new MessageParser<TResponse>(() => new TResponse());
+                    result.Add(v.ParseFrom(res.Msg));
+                }
+                else
+                {
+                    faultCount++;
+                    stringList.Add(res.StateDetail);
+                }
+            }
+
+            if (faultCount > 0)
+            {
+                Console.WriteLine("Fault message = " + faultCount);
+                stringList.ForEach(Console.WriteLine);
             }
 
             return result;
+        }
+
+        private int GetNextClient()
+        {
+            var i = Interlocked.Increment(ref index);
+            return (i % connection);
         }
     }
 }

@@ -73,6 +73,6 @@ message CreateBatchClientReply {
 
 message ClientEndOfTaskRequest {
   BatchClientIdentity batch_client_info = 1;
-  string total_request_number = 2;
+  int32 total_request_number = 2;
 }
 

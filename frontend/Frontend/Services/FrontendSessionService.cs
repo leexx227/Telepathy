@@ -32,7 +32,6 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<SessionReply> CreateSession(CreateSessionRequest request, ServerCallContext context)
         {
-            Console.WriteLine("Create " + Configuration.SessionServiceAddress);
             var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var sessionInfo = await sessionSvcClient.CreateSessionAsync(request);
