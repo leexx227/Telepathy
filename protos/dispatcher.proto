@@ -15,8 +15,8 @@ enum SessionStateEnum {
 }
 
 enum TaskStateEnum {
-    SUCCESS = 0;
-    FAILED = 1;
+    FINISHED = 0;
+    REQUEUE = 1;
 };
 
 message GetTaskRequest {
