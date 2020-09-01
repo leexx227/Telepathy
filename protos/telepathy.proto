@@ -16,6 +16,7 @@ message InnerTask {
 
 message InnerResult {
   bytes msg = 1;
+  // state_code 0: success, 1: failed
   int32 state_code = 2;
   string state_detail = 3;
   string session_id = 4;
