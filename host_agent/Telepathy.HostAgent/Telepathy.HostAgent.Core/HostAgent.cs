@@ -13,7 +13,7 @@ using Microsoft.Telepathy.ProtoBuf;
 
 namespace Microsoft.Telepathy.HostAgent.Core
 {
-    public class HostAgent : IHostAgent
+    public class HostAgent : IHostAgent, IDisposable
     {
         private Dispatcher.DispatcherClient dispatcherClient;
 
@@ -75,8 +75,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
             var dispatcherIp = environmentInfo.DispatcherIp;
             var dispatcherPort = environmentInfo.DispatcherPort;
-            var dispatcherTarget = dispatcherIp + ":" + dispatcherPort;
-            var dispatcherChannel = new Channel(dispatcherTarget, ChannelCredentials.Insecure);
+            var dispatcherChannel = new Channel(dispatcherIp, dispatcherPort, ChannelCredentials.Insecure);
             this.dispatcherClient = new Dispatcher.DispatcherClient(dispatcherChannel);
 
             this.concurrentSvcTask = new Task[this.svcConcurrency];
@@ -139,8 +138,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
 
             var svcTask = Task.WhenAll(this.concurrentSvcTask);
+            taskList.Add(svcTask);
 
-            while (true)
+            while (taskList.Count > 0)
             {
                 var t = await Task.WhenAny(taskList);
                 
@@ -159,7 +159,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// Get task wrapper from dispatcher and save the task wrapper into the queue until meet the prefetch count or task end.
         /// </summary>
         /// <returns></returns>
-        public async Task GetTaskAsync()
+        private async Task GetTaskAsync()
         {
             var getEmptyQueueCount = 0;
             var currentRetryCount = 0;
@@ -212,6 +212,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 }
                 else
                 {
+                    Console.WriteLine($"[GetTaskAsync] Prefetch task enough. Expected prefetch count: {this.prefetchCount}, current task queue length: {this.taskQueue.Count}.");
                     Trace.TraceInformation($"[GetTaskAsync] Prefetch task enough. Expected prefetch count: {this.prefetchCount}, current task queue length: {this.taskQueue.Count}.");
                     await Task.Delay(this.checkQueueLengthIntervalMs);
                 }
@@ -222,7 +223,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// Send the task to the svc host and get the result.
         /// </summary>
         /// <returns></returns>
-        public async Task SendTaskToSvcAsync()
+        private async Task SendTaskToSvcAsync()
         {
             var gui = Guid.NewGuid().ToString();
             Console.WriteLine($"enter sendtask, thread: {Thread.CurrentThread.ManagedThreadId}, guid: {gui}");
@@ -267,7 +268,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// </summary>
         /// <param name="wrappedTask"></param>
         /// <returns>SendResultRequest which should be send to dispatcher.</returns>
-        public async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask wrappedTask)
+        private async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask wrappedTask)
         {
             var innerTask = InnerTask.Parser.ParseFrom(wrappedTask.SerializedInnerTask);
             
@@ -366,7 +367,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns>MessageWrapper from service.</returns>
-        public async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerTask innerTask)
+        private async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var task = this.GetMessageWrapper(innerTask);
@@ -399,7 +400,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns></returns>
-        public async Task<MessageWrapper> HandleClientStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
+        private async Task<MessageWrapper> HandleClientStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             throw new NotSupportedException();
         }
@@ -410,7 +411,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns></returns>
-        public async Task<MessageWrapper> HandleServerStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
+        private async Task<MessageWrapper> HandleServerStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             throw new NotSupportedException();
         }
@@ -421,7 +422,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns>MessageWrapper from service.</returns>
-        public async Task<MessageWrapper> HandleDuplexStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
+        private async Task<MessageWrapper> HandleDuplexStreamingCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var task = this.GetMessageWrapper(innerTask);
@@ -475,7 +476,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// </summary>
         /// <param name="result"></param>
         /// <returns></returns>
-        public async Task SendResultAsync(SendResultRequest result)
+        private async Task SendResultAsync(SendResultRequest result)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             
@@ -494,7 +495,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 });
         }
 
-        public MessageWrapper GetMessageWrapper(InnerTask innerTask)
+        private MessageWrapper GetMessageWrapper(InnerTask innerTask)
         {
             if (innerTask != null)
             {
@@ -522,7 +523,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <summary>
         /// Find an available port and use that port to start service.
         /// </summary>
-        public void LoadSvc()
+        private void LoadSvc()
         {
             var port = Utility.GetAvailableSvcPort();
             try
@@ -534,8 +535,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         this.svcProcess = process;
                         this.svcPort = port;
-                        var svcTarget = this.environmentInfo.SvcHostName + ":" + this.svcPort;
-                        this.svcChannel = new Channel(svcTarget, ChannelCredentials.Insecure);
+                        this.svcChannel = new Channel(this.environmentInfo.SvcHostName, svcPort, ChannelCredentials.Insecure);
                         this.isSvcAvailable = true;
                         this.svcInitSw.Start();
                         return;
@@ -624,6 +624,17 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            if (!this.svcProcess.HasExited)
+            {
+                this.svcProcess.Kill();
+            }
+            this.svcChannel.ShutdownAsync().Wait();
+
+            GC.SuppressFinalize(this);
         }
     }
 }

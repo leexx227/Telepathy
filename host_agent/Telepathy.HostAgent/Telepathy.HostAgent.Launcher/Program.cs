@@ -13,11 +13,13 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
             SetEnvironmentVariable();
             var environmentInfo = new EnvironmentInfo();
 
-            IHostAgent hostAgent = new Microsoft.Telepathy.HostAgent.Core.HostAgent(environmentInfo);
+            var hostAgent = new Microsoft.Telepathy.HostAgent.Core.HostAgent(environmentInfo);
 
             hostAgent.StartAsync().GetAwaiter().GetResult();
 
             Console.ReadKey();
+
+            hostAgent.Dispose();
         }
 
         static void SetEnvironmentVariable()
