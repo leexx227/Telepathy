@@ -16,13 +16,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="..\..\..\protos\dispatcher.proto">
+    <Protobuf Include="..\..\protos\dispatcher.proto">
       <Link>dispatcher.proto</Link>
     </Protobuf>
-    <Protobuf Include="..\..\..\protos\session.proto">
+    <Protobuf Include="..\..\protos\session.proto">
       <Link>session.proto</Link>
     </Protobuf>
-    <Protobuf Include="..\..\..\protos\telepathy.proto">
+    <Protobuf Include="..\..\protos\telepathy.proto">
       <Link>telepathy.proto</Link>
     </Protobuf>
   </ItemGroup>
