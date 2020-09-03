@@ -19,9 +19,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int svcPort;
 
-        private Channel svcChannel;
+        private string svcHostName;
 
-        private EnvironmentInfo environmentInfo;
+        private Channel svcChannel;
 
         private int svcTimeoutMs;
 
@@ -67,56 +67,51 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         public HostAgent(EnvironmentInfo environmentInfo)
         {
-            this.environmentInfo = environmentInfo;
+            if (!this.ParameterValid(environmentInfo))
+            {
+                Trace.TraceError(
+                    $"Host agent initialization failed. Parameter invalid.");
+                Console.WriteLine("Host agent initialization failed. Parameter invalid.");
+                this.PrintInfo(environmentInfo);
+                throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
+            }
+            this.PrintInfo(environmentInfo);
+
+            this.svcHostName = environmentInfo.SvcHostName;
             this.svcTimeoutMs = environmentInfo.SvcTimeoutMs;
             this.svcInitTimeoutMs = environmentInfo.SvcInitTimeoutMs;
             this.svcConcurrency = environmentInfo.SvcConcurrency;
             this.prefetchCount = environmentInfo.PrefetchCount;
 
-            var dispatcherIp = environmentInfo.DispatcherIp;
-            var dispatcherPort = environmentInfo.DispatcherPort;
-            var dispatcherChannel = new Channel(dispatcherIp, dispatcherPort, ChannelCredentials.Insecure);
+            var dispatcherChannel = new Channel(environmentInfo.DispatcherIp, environmentInfo.DispatcherPort, ChannelCredentials.Insecure);
             this.dispatcherClient = new Dispatcher.DispatcherClient(dispatcherChannel);
 
             this.concurrentSvcTask = new Task[this.svcConcurrency];
             this.SessionId = environmentInfo.SessionId;
 
-            this.svcLoader = new SvcLoader(SvcLoader.GetSvcMustVariableList());
-
-            if (!this.ParameterValid)
-            {
-                Trace.TraceError(
-                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
-                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms, svc init timeout: {this.svcInitTimeoutMs}ms");
-                Console.WriteLine(
-                    $"Host agent initialization failed. Parameter invalid. Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}," +
-                    $"dispatcher ip: {this.environmentInfo.DispatcherIp}, dispatcher port: {this.environmentInfo.DispatcherPort}, svc timeout: {this.svcTimeoutMs}ms, svc init timeout: {this.svcInitTimeoutMs}ms");
-                throw new InvalidOperationException("Host agent initialization failed. Parameter invalid.");
-            }
-
-            this.PrintInfo();
+            this.svcLoader = new SvcLoader();
         }
 
-        private bool ParameterValid => this.SvcTargetValid && this.DispatcherTargetValid && this.SessionIdValid &&
-                                        this.TimeoutValid && this.prefetchCount >= 0 && this.svcConcurrency > 0;
+        private bool ParameterValid(EnvironmentInfo info) => this.SvcTargetValid(info) && this.DispatcherTargetValid(info) && this.SessionIdValid(info) &&
+                                        this.TimeoutValid(info) && info.PrefetchCount >= 0 && info.SvcConcurrency > 0;
 
-        private bool SvcTargetValid => !string.IsNullOrEmpty(this.environmentInfo.SvcHostName);
+        private bool SvcTargetValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.SvcHostName);
 
-        private bool DispatcherTargetValid => !string.IsNullOrEmpty(this.environmentInfo.DispatcherIp) &&
-                                              (this.environmentInfo.DispatcherPort >= 0);
+        private bool DispatcherTargetValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.DispatcherIp) &&
+                                              (info.DispatcherPort >= 0);
 
-        private bool SessionIdValid => !string.IsNullOrEmpty(this.SessionId);
+        private bool SessionIdValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.SessionId);
 
-        private bool TimeoutValid => this.svcTimeoutMs > 0 && this.svcInitTimeoutMs >= 0;
+        private bool TimeoutValid(EnvironmentInfo info) => info.SvcTimeoutMs > 0 && info.SvcInitTimeoutMs >= 0;
 
-        private void PrintInfo()
+        private void PrintInfo(EnvironmentInfo info)
         {
             Console.WriteLine(
-                $"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
-                $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms svc init timeout: {this.svcInitTimeoutMs}ms");
+                $"[Host agent info] Session id: {info.SessionId}, svc host name: {info.SvcHostName}, dispatcher ip: {info.DispatcherIp}, dispatcher port: {info.DispatcherPort}, " +
+                $"svc concurrency: {info.SvcConcurrency}, svc prefetch count: {info.PrefetchCount}, svc timeout: {info.SvcTimeoutMs}ms, svc init timeout: {info.SvcInitTimeoutMs}ms");
             Trace.TraceInformation(
-                $"[Host agent info] Session id: {this.SessionId}, svc host name: {this.environmentInfo.SvcHostName}, dispatcher ip: {this.environmentInfo.DispatcherIp}, " +
-                $"dispatcher port: {this.environmentInfo.DispatcherPort}, svc concurrency: {this.svcConcurrency}, svc prefetch count: {this.prefetchCount}, svc timeout: {this.svcTimeoutMs}ms svc init timeout: {this.svcInitTimeoutMs}ms");
+                $"[Host agent info] Session id: {info.SessionId}, svc host name: {info.SvcHostName}, dispatcher ip: {info.DispatcherIp}, dispatcher port: {info.DispatcherPort}, " +
+                $"svc concurrency: {info.SvcConcurrency}, svc prefetch count: {info.PrefetchCount}, svc timeout: {info.SvcTimeoutMs}ms, svc init timeout: {info.SvcInitTimeoutMs}ms");
         }
 
         /// <summary>
@@ -320,22 +315,25 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         failedResult.TaskState = TaskStateEnum.Finished;
                         this.consecutiveFailedTask = 0;
+                        Console.WriteLine($"[Host agent] Catch exception and return FINISHED result to dispatcher.");
                     }
                     else
                     {
                         failedResult.TaskState = TaskStateEnum.Requeue;
                         Interlocked.Increment(ref this.consecutiveFailedTask);
+                        Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
                     }
                 }
                 else
                 {
                     failedResult.TaskState = TaskStateEnum.Requeue;
                     Interlocked.Increment(ref this.consecutiveFailedTask);
+                    Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
                 }
 
                 if (this.consecutiveFailedTask > this.maxConsecutiveFailedTask)
                 {
-                    throw new Exception($"[Host agent] Service consecutively failed. ConsecutiveFailedTask:{this.consecutiveFailedTask}.");
+                    throw new Exception($"[Host agent] Service consecutively failed. Consecutive failed task: {this.consecutiveFailedTask}.");
                 }
                 return failedResult;
             }
@@ -357,6 +355,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 SerializedInnerResult = innerResult.ToByteString()
             };
             this.consecutiveFailedTask = 0;
+            Console.WriteLine($"[Host agent] Get result successfully and return FINISHED result to dispatcher.");
 
             return result;
         }
@@ -535,7 +534,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         this.svcProcess = process;
                         this.svcPort = port;
-                        this.svcChannel = new Channel(this.environmentInfo.SvcHostName, svcPort, ChannelCredentials.Insecure);
+                        this.svcChannel = new Channel(this.svcHostName, this.svcPort, ChannelCredentials.Insecure);
                         this.isSvcAvailable = true;
                         this.svcInitSw.Start();
                         return;

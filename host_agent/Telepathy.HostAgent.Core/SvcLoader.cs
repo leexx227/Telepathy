@@ -9,37 +9,23 @@ namespace Microsoft.Telepathy.HostAgent.Core
 {
     class SvcLoader
     {
-        private List<string> mustNotNullVarList;
-
         private ProcessStartInfo processInfo;
 
         private string cmd;
 
         private string program;
 
-        public SvcLoader(List<string> mustNotNullVarList)
+        public SvcLoader()
         {
-            this.mustNotNullVarList = mustNotNullVarList;
             this.processInfo = new ProcessStartInfo();
             SetProcessStartInfo();
-        }
-        public static List<string> GetSvcMustVariableList()
-        {
-            return new List<string>()
-            {
-                HostAgentConstants.SvcLanguageEnvVar, HostAgentConstants.TelepathyWorkingDirEnvVar,
-                HostAgentConstants.SvcFullPathEnvVar
-            };
         }
 
         private void SetProcessStartInfo()
         {
-            if (!Utility.CheckEnvVarValidation(this.mustNotNullVarList))
-            {
-                throw new InvalidOperationException("Service process start info initialization failed. Get empty environment variable.");
-            }
-
             var svcFullPath = Environment.GetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar);
+            Utility.ThrowIfNullOrEmpty(svcFullPath, HostAgentConstants.SvcFullPathEnvVar);
+            Utility.ThrowIfNullOrEmpty(Environment.GetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar), HostAgentConstants.TelepathyWorkingDirEnvVar);
             svcFullPath = Environment.ExpandEnvironmentVariables(svcFullPath);
             var pathList = svcFullPath.Contains(HostAgentConstants.WinFilePathSeparator)
                 ? svcFullPath.Split(HostAgentConstants.WinFilePathSeparator)
@@ -49,6 +35,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             var workingDir = string.Join(Utility.GetFileSeparator(), pathList[0..(pathList.Length - 1)]);
 
             var language = Environment.GetEnvironmentVariable(HostAgentConstants.SvcLanguageEnvVar);
+            Utility.ThrowIfNullOrEmpty(language, HostAgentConstants.SvcLanguageEnvVar);
             switch (language.ToLower())
             {
                 case HostAgentConstants.CsharpLanguage:

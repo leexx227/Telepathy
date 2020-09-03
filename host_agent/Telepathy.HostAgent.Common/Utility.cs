@@ -53,28 +53,12 @@ namespace Microsoft.Telepathy.HostAgent.Common
             }
         }
 
-        public static bool CheckEnvVarValidation(List<string> mustNotNullVarList)
-        {
-            foreach (var variable in mustNotNullVarList)
-            {
-                var value = Environment.GetEnvironmentVariable(variable);
-                if (string.IsNullOrEmpty(value))
-                {
-                    Console.WriteLine($"Environment variable {variable} can't be null.");
-                    Trace.TraceError($"Environment variable {variable} can't be null.");
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        static public int GetAvailableSvcPort()
+        public static int GetAvailableSvcPort()
         {
             var rdn = new Random();
             while (true)
             {
-                int port = rdn.Next(HostAgentConstants.searchPortStart, UInt16.MaxValue);
+                int port = rdn.Next(HostAgentConstants.SearchPortStart, UInt16.MaxValue);
                 if (PortAvailable(port))
                 {
                     Console.WriteLine($"Find available port: {port}.");
@@ -83,7 +67,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
             }
         }
 
-        static public bool PortAvailable(int port)
+        public static bool PortAvailable(int port)
         {
             IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
             IPEndPoint[] tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
@@ -96,6 +80,16 @@ namespace Microsoft.Telepathy.HostAgent.Common
             }
 
             return true;
+        }
+
+        public static void ThrowIfNullOrEmpty(string arg, string name)
+        {
+            if (string.IsNullOrEmpty(arg))
+            {
+                Console.WriteLine($"{name} can't be null or empty.");
+                Trace.TraceError($"{name} can't be null or empty.");
+                throw new ArgumentException($"{name} value can't be null or empty", name);
+            }
         }
     }
 }

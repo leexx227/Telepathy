@@ -27,6 +27,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string WinFilePathSeparator = @"\";
         public const string UnixFilePathSeparator = @"/";
 
-        public const int searchPortStart = 5001;
+        public const int SearchPortStart = 5000;
+        public const int DispatcherPort = 50051;
     }
 }

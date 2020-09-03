@@ -26,7 +26,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             get { return this.dispatcherIp; }
         }
 
-        private int dispatcherPort = 5000;
+        private int dispatcherPort = HostAgentConstants.DispatcherPort;
         /// <summary>
         /// The host port of dispatcher.
         /// </summary>
