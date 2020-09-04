@@ -235,7 +235,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
                             var result = await this.CallMethodWrapperAsync(wrapperTask);
                             Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
                             await SendResultAsync(result);
-                            await Task.Delay(2000);
                         }
                     }
                     else
@@ -305,6 +304,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     SessionId = wrappedTask.SessionId,
                     TaskId = wrappedTask.TaskId,
+                    ClientId = innerTask.ClientId,
                     SerializedInnerResult = failedInnerResult.ToByteString()
                 };
 
@@ -351,6 +351,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             {
                 SessionId = wrappedTask.SessionId,
                 TaskId = wrappedTask.TaskId,
+                ClientId = innerTask.ClientId,
                 TaskState = TaskStateEnum.Finished,
                 SerializedInnerResult = innerResult.ToByteString()
             };
