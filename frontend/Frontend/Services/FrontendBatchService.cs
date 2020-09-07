@@ -29,7 +29,7 @@ namespace Microsoft.Telepathy.Frontend.Services
             await sessionSvcClient.ClientEndOfTaskAsync(request);
 
             IDatabase cache = CommonUtility.Connection.GetDatabase();
-            var topicName = GetTopicName(request.BatchClientInfo.SessionId, request.BatchClientInfo.ClientId) + ".totalNum";
+            var topicName = GetQueueName(request.BatchClientInfo.SessionId, request.BatchClientInfo.ClientId) + ":totalNum";
             await cache.StringSetAsync(topicName, request.TotalRequestNumber);
 
             return new Empty();
@@ -94,6 +94,7 @@ namespace Microsoft.Telepathy.Frontend.Services
             {
                 await foreach (var request in requestStream.ReadAllAsync())
                 {
+                    Console.WriteLine("a message coming in");
                     await requestPersist.PutTaskAsync(request);
                 }
             }
@@ -110,11 +111,12 @@ namespace Microsoft.Telepathy.Frontend.Services
             return new Empty();
         }
 
-        private static string GetTopicName(string sessionId, string clientId)
+        private static string GetQueueName(string sessionId, string clientId)
         {
-            var sb = new StringBuilder(sessionId);
-            sb.Append('.');
+            var sb = new StringBuilder("{" + sessionId + "}");
+            sb.Append(':');
             sb.Append(clientId);
+            sb.Append(":response");
             return sb.ToString();
         }
     }

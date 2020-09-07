@@ -61,7 +61,7 @@ namespace Microsoft.Telepathy.ClientAPI
             this.session = session;
             this.connection = connection;
             this.streamNum = streamNum;
-            this.batchInfo = new BatchClientIdentity{ SessionId = session.SessionInfo.SessionId, ClientId = clientId};
+            this.batchInfo = new BatchClientIdentity{ SessionId = session.Id, ClientId = clientId};
 
             if (method.IsClientStreaming)
             {
@@ -154,7 +154,7 @@ namespace Microsoft.Telepathy.ClientAPI
             if (request.GetType() == method.InputType.ClrType)
             {
                 var inner = new InnerTask
-                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.SessionInfo.SessionId};
+                { ServiceName = method.Service.FullName, MethodName = method.Name, Msg = request.ToByteString(), MethodType = methodtype, MessageId = messageId, ClientId = clientId, SessionId = session.Id};
 
                 requestCache.Enqueue(inner);
                 Interlocked.Increment(ref requestCount);

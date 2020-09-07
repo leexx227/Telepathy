@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,14 +23,31 @@ namespace Microsoft.Telepathy.Frontend.MessagePersist
 
         private int cacheIndex = 0;
 
+        private int count = 0;
+
+        private ConcurrentDictionary<string, bool> messageDic = new ConcurrentDictionary<string, bool>();
+
         public RedisPersist(BatchClientIdentity batchInfo)
         {
             redis = CommonUtility.Connection.GetDatabase();
             keyName = getKeyName(batchInfo.SessionId, batchInfo.ClientId);
 
-            Task.Run(async () =>
+            Task.Run(async () => 
             {
-                while (!(await redis.StringGetAsync(keyName + ".totalNum")).TryParse(out totalNum)) {
+                while (true)
+                {
+                    var temp = await redis.StringGetAsync(keyName + ":totalNum");
+                    if (temp != RedisValue.Null && temp != RedisValue.EmptyString)
+                    {
+                        if (temp.TryParse(out totalNum))
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        await Task.Delay(500);
+                    }
                 }
             });
         }
@@ -46,7 +64,7 @@ namespace Microsoft.Telepathy.Frontend.MessagePersist
 
         public async Task<InnerResult> GetResultAsync()
         {
-            while (lastIndex < totalNum || cacheIndex < listCache.Length)
+            while (count < totalNum)
             {
                 if (listCache.Length == cacheIndex)
                 {
@@ -58,7 +76,15 @@ namespace Microsoft.Telepathy.Frontend.MessagePersist
                 if (cacheIndex < listCache.Length)
                 {
                     var result = InnerResult.Parser.ParseFrom(listCache[cacheIndex++]);
-                    return result;
+                    if (messageDic.TryAdd(result.MessageId, true))
+                    {
+                        count++;
+                        return result;
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
 
                 await Task.Delay(100);
@@ -69,9 +95,10 @@ namespace Microsoft.Telepathy.Frontend.MessagePersist
 
         private static string getKeyName(string sessionId, string clientId)
         {
-            var sb = new StringBuilder(sessionId);
-            sb.Append('.');
+            var sb = new StringBuilder("{" + sessionId + "}");
+            sb.Append(':');
             sb.Append(clientId);
+            sb.Append(":response");
             return sb.ToString();
         }
 }

@@ -18,7 +18,9 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public string TelepathyAddress => telepathyAddress;
 
-        Session(SessionReply sessionInfo, string address)
+        public string Id => sessionInfo.SessionId;
+
+        public Session(SessionReply sessionInfo, string address)
         {
             this.sessionInfo = sessionInfo;
             telepathyAddress = address;

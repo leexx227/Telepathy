@@ -25,7 +25,7 @@ namespace Frontend.UnitTest
     {
         public static string fakeMessage = "Fake message";
 
-        private static string sessionId = "session";
+        private static string sessionId = "session10";
 
         private static string clientId = "client";
 
@@ -35,7 +35,9 @@ namespace Frontend.UnitTest
 
         public static bool completed;
 
-        public static string queueName = sessionId + "." + clientId;
+        public static string topicName = sessionId + "." + clientId;
+
+        public static string queueName = "{" + sessionId + "}:" + clientId + ":response";
 
         public static ServerCallContext testServerCallContext = TestServerCallContext.Create(null, null, DateTime.Now, null,
             new CancellationToken(), null, null, null, null, null, null);
@@ -60,7 +62,7 @@ namespace Frontend.UnitTest
 
             var result = await service.SendTask(request, null);
 
-            var consumer = new Consumer(queueName, "channel");
+            var consumer = new Consumer(topicName, "channel");
             consumer.AddHandler(new MessageHandler());
             consumer.ConnectToNsqLookupd(nsqLookupd);
 
@@ -78,8 +80,8 @@ namespace Frontend.UnitTest
             var cache = CommonUtility.Connection.GetDatabase();
 
             await cache.KeyDeleteAsync(queueName);
-            await cache.ListRightPushAsync(queueName, new InnerResult { Msg = ByteString.CopyFromUtf8(fakeMessage) }.ToByteArray());
-            await cache.StringSetAsync(queueName + ".totalNum", 1);
+            await cache.ListRightPushAsync(queueName, new InnerResult { Msg = ByteString.CopyFromUtf8(fakeMessage), MessageId = Guid.NewGuid().ToString()}.ToByteArray());
+            await cache.StringSetAsync(queueName + ":totalNum", 1);
 
             var service = new FrontendBatchService();
 
@@ -104,14 +106,14 @@ namespace Frontend.UnitTest
             await cache.KeyDeleteAsync(queueName);
             for (int i = 0; i < n; i++)
             {
-                var task = batch.ListRightPushAsync(queueName, new InnerResult { Msg = ByteString.CopyFromUtf8(fakeMessage)}.ToByteArray());
+                var task = batch.ListRightPushAsync(queueName, new InnerResult { Msg = ByteString.CopyFromUtf8(fakeMessage), MessageId = Guid.NewGuid().ToString() }.ToByteArray());
                 tasks.Add(task);
             }
 
             batch.Execute();
             await Task.WhenAll(tasks.ToArray());
 
-            await cache.StringSetAsync(queueName + ".totalNum", n);
+            await cache.StringSetAsync(queueName + ":totalNum", n);
 
             var service = new FrontendBatchService();
 

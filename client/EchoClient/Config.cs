@@ -41,7 +41,7 @@ namespace Microsoft.Telepathy.EchoClient
         {
             get { return this.helpInfo; }
         }
-        private string headNode = "%CCP_SCHEDULER%";
+        private string headNode = "localhost";
         public string HeadNode
         {
             get { return this.headNode; }
@@ -121,7 +121,7 @@ namespace Microsoft.Telepathy.EchoClient
             get { return this.environment; }
         }
 
-        private string serviceName = "CcpEchoSvc";
+        private string serviceName = "Echo";
         public string ServiceName
         {
             get { return this.serviceName; }
