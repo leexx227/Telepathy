@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -14,7 +15,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<SessionReply> AttachSession(AttachSessionRequest request, ServerCallContext context)
         {
-            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var sessionInfo = await sessionSvcClient.AttachSessionAsync(request);
 
@@ -23,7 +27,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<Empty> CloseSession(CloseSessionRequest request, ServerCallContext context)
         {
-            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             await sessionSvcClient.CloseSessionAsync(request);
 
@@ -32,7 +39,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<SessionReply> CreateSession(CreateSessionRequest request, ServerCallContext context)
         {
-            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var sessionInfo = await sessionSvcClient.CreateSessionAsync(request);
 
@@ -41,7 +51,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<CreateBatchClientReply> CreateBatchClient(CreateBatchClientRequest request, ServerCallContext context)
         {
-            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             var result = await sessionSvcClient.CreateBatchClientAsync(request);
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -24,7 +25,10 @@ namespace Microsoft.Telepathy.Frontend.Services
 
         public override async Task<Empty> EndTasks(ClientEndOfTaskRequest request, ServerCallContext context)
         {
-            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(Configuration.SessionServiceAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var sessionSvcClient = new SessionManager.SessionManagerClient(channel);
             await sessionSvcClient.ClientEndOfTaskAsync(request);
 
@@ -53,39 +57,6 @@ namespace Microsoft.Telepathy.Frontend.Services
                     }
                 }
             }
-
-            //IDatabase cache = CommonUtility.Connection.GetDatabase();
-            //var topicName = GetTopicName(request.SessionId, request.ClientId);
-            //int lastIndex = 0;
-
-            //int totalNum = Int32.MaxValue;
-
-
-            //Task.Run(() =>
-            //{
-            //    while (!cache.StringGet(topicName + ".totalNum").TryParse(out totalNum)) {
-            //    }
-            //});
-
-
-            //while (!context.CancellationToken.IsCancellationRequested && lastIndex < totalNum)
-            //{
-            //    var list = cache.ListRange(topicName, lastIndex, lastIndex + Configuration.MaxCacheTasks - 1);
-
-            //    foreach (var item in list)
-            //    {
-            //        var result = InnerResult.Parser.ParseFrom(item);
-            //        await responseStream.WriteAsync(result);
-            //    }
-
-            //    lastIndex = lastIndex + list.Length;
-
-            //    if (lastIndex < totalNum && list.Length < Configuration.MaxCacheTasks)
-            //    {
-            //        await Task.Delay(500);
-            //    }
-            //}
-
         }
 
         public override async Task<Empty> SendTask(IAsyncStreamReader<InnerTask> requestStream, ServerCallContext context)

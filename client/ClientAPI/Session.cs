@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Grpc.Core;
@@ -34,7 +35,10 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public async Task CloseAsync()
         {
-            var channel = GrpcChannel.ForAddress(telepathyAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(telepathyAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var client = new FrontendSession.FrontendSessionClient(channel);
 
             //TODO auth
@@ -46,25 +50,35 @@ namespace Microsoft.Telepathy.ClientAPI
             this.Dispose();
         }
 
-        public async Task CreateSessionClientAsync()
+        public async Task CreateSessionClientAsync(BatchClientIdentity batchInfo)
         {
-            var channel = GrpcChannel.ForAddress(telepathyAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(telepathyAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
+
             var client = new FrontendSession.FrontendSessionClient(channel);
-            await client.CreateBatchClientAsync(new CreateBatchClientRequest(){ });
+            await client.CreateBatchClientAsync(new CreateBatchClientRequest(){BatchClientInfo = batchInfo});
         }
 
         public static async Task<Session> CreateSessionAsync(SessionStartInfo sessionStartInfo)
         {
-            var channel = GrpcChannel.ForAddress(sessionStartInfo.TelepathyAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(sessionStartInfo.TelepathyAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
 
             var client = new FrontendSession.FrontendSessionClient(channel);
-            var result = await client.CreateSessionAsync(new CreateSessionRequest());
+            var result = await client.CreateSessionAsync(new CreateSessionRequest{SessionInitInfo = new SessionInitInfo{ServiceName = sessionStartInfo.ServiceName, MaxServiceInstance = sessionStartInfo.MaxServiceNum, ServiceVersion = sessionStartInfo.ServiceVersion!=null? sessionStartInfo.ServiceVersion.ToString():string.Empty}});
             return  new Session(result, sessionStartInfo.TelepathyAddress);
         }
 
         public static async Task<Session> AttachSessionAsync(SessionAttachInfo sessionAttachInfo)
         {
-            var channel = GrpcChannel.ForAddress(sessionAttachInfo.TelepathyAddress);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(sessionAttachInfo.TelepathyAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var client = new FrontendSession.FrontendSessionClient(channel);
             var result = await client.AttachSessionAsync(new AttachSessionRequest{ SessionId = sessionAttachInfo.SessionId});
             return new Session(result, sessionAttachInfo.TelepathyAddress);
@@ -72,7 +86,10 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public static async Task CloseSessionAsync(string sessionId, string address)
         {
-            var channel = GrpcChannel.ForAddress(address);
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            var channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
             var client = new FrontendSession.FrontendSessionClient(channel);
             await client.CloseSessionAsync(new CloseSessionRequest { SessionId = sessionId });
         }

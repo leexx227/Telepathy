@@ -31,7 +31,7 @@ namespace Microsoft.Telepathy.EchoClient
             }
 
             SessionStartInfo info = new SessionStartInfo(config.HeadNode, config.ServiceName);
-
+            info.MaxServiceNum = 1;
             Session session = null;
 
             try
@@ -42,12 +42,17 @@ namespace Microsoft.Telepathy.EchoClient
                     {
                         for (int i = 0; i < config.NumberOfRequest; i++)
                         {
-                            client.SendTask(new EchoRequest(null, config.MessageSizeByte, config.CallDurationMS));
+                            client.SendTask(new EchoRequest(i.ToString(), config.MessageSizeByte, config.CallDurationMS));
                         }
 
                         await client.EndTasksAsync();
 
                         var result = await client.GetResultsAsync<EchoReply>();
+
+                        foreach (var reply in result)
+                        {
+                            Console.WriteLine(reply.Message);
+                        }
                     }
                 }
             }

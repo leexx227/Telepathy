@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -84,7 +85,10 @@ namespace Microsoft.Telepathy.ClientAPI
 
             for (int i = 0; i < connection; i++)
             {
-                var channel = GrpcChannel.ForAddress(session.TelepathyAddress);
+                var httpClientHandler = new HttpClientHandler();
+                httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+                var channel = GrpcChannel.ForAddress(session.TelepathyAddress, new GrpcChannelOptions{ HttpHandler = httpClientHandler });
 
                 //TODO auth
                 //var channel = GrpcChannel.ForAddress(session.TelepathyAddress, new GrpcChannelOptions
@@ -96,7 +100,7 @@ namespace Microsoft.Telepathy.ClientAPI
                 clients.Add(new Lazy<FrontendBatch.FrontendBatchClient>(() => new FrontendBatch.FrontendBatchClient(channel)));
             }
 
-            session.CreateSessionClientAsync().GetAwaiter().GetResult();
+            session.CreateSessionClientAsync(batchInfo).GetAwaiter().GetResult();
         }
 
         public async Task CloseAsync()
