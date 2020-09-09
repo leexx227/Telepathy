@@ -20,11 +20,11 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public string Password { get; set; }
 
-        public int SessionIdleTimeout { get; set; }
+        public int SessionIdleTimeout { get; set; } = 60000;
 
         public int ClientConnectTimeout { get; set; }
 
-        public int ClientIdleTimeout { get; set; }
+        public int ClientIdleTimeout { get; set; } = 60000;
 
         public int MaxServiceNum { get; set; }
 

@@ -69,8 +69,19 @@ namespace Microsoft.Telepathy.ClientAPI
             var channel = GrpcChannel.ForAddress(sessionStartInfo.TelepathyAddress, new GrpcChannelOptions() { HttpHandler = httpClientHandler });
 
             var client = new FrontendSession.FrontendSessionClient(channel);
-            var result = await client.CreateSessionAsync(new CreateSessionRequest{SessionInitInfo = new SessionInitInfo{ServiceName = sessionStartInfo.ServiceName, MaxServiceInstance = sessionStartInfo.MaxServiceNum, ServiceVersion = sessionStartInfo.ServiceVersion!=null? sessionStartInfo.ServiceVersion.ToString():string.Empty}});
-            return  new Session(result, sessionStartInfo.TelepathyAddress);
+            var result = await client.CreateSessionAsync(new CreateSessionRequest
+            {
+                SessionInitInfo = new SessionInitInfo
+                {
+                    ServiceName = sessionStartInfo.ServiceName, MaxServiceInstance = sessionStartInfo.MaxServiceNum,
+                    ServiceVersion = sessionStartInfo.ServiceVersion != null
+                        ? sessionStartInfo.ServiceVersion.ToString()
+                        : string.Empty,
+                    ClientIdleTimeout = sessionStartInfo.ClientIdleTimeout,
+                    SessionIdleTimeout = sessionStartInfo.SessionIdleTimeout
+                }
+            });
+            return new Session(result, sessionStartInfo.TelepathyAddress);
         }
 
         public static async Task<Session> AttachSessionAsync(SessionAttachInfo sessionAttachInfo)
