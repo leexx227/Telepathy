@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.NetworkInformation;
 using System.Text;
 using Microsoft.Telepathy.HostAgent.Common;
@@ -27,6 +28,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             Utility.ThrowIfNullOrEmpty(svcFullPath, HostAgentConstants.SvcFullPathEnvVar);
             Utility.ThrowIfNullOrEmpty(Environment.GetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar), HostAgentConstants.TelepathyWorkingDirEnvVar);
             svcFullPath = Environment.ExpandEnvironmentVariables(svcFullPath);
+
             var pathList = svcFullPath.Contains(HostAgentConstants.WinFilePathSeparator)
                 ? svcFullPath.Split(HostAgentConstants.WinFilePathSeparator)
                 : svcFullPath.Split(HostAgentConstants.UnixFilePathSeparator);
@@ -68,9 +70,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.processInfo.EnvironmentVariables[HostAgentConstants.SvcPortEnvVar] = svcPort.ToString();
             try
             {
-                var process = Process.Start(processInfo);
                 Console.WriteLine("Service info:");
                 Utility.PrintProcessInfo(this.processInfo);
+                var process = Process.Start(processInfo);
                 return process;
             }
             catch (Exception e)

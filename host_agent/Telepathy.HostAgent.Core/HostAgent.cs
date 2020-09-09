@@ -21,7 +21,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private string svcHostName;
 
-        private Channel svcChannel;
+        internal Channel svcChannel;
 
         private int svcTimeoutMs;
 
@@ -39,11 +39,11 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int svcConcurrency;
 
-        private int maxRetries = 3;
+        internal int maxRetries = 3;
 
-        private ConcurrentQueue<WrappedTask> taskQueue = new ConcurrentQueue<WrappedTask>();
+        internal ConcurrentQueue<WrappedTask> taskQueue = new ConcurrentQueue<WrappedTask>();
 
-        private int prefetchCount;
+        internal int prefetchCount { get; }
 
         private bool isTaskEnd = false;
 
@@ -57,13 +57,17 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private bool isSvcAvailable = false;
 
-        private int svcInitTimeoutMs;
+        internal int svcInitTimeoutMs;
 
-        private Stopwatch svcInitSw = new Stopwatch();
+        internal Stopwatch svcInitSw = new Stopwatch();
 
         private int consecutiveFailedTask = 0;
 
         private int maxConsecutiveFailedTask = 5;
+
+        private CancellationTokenSource hostAgentCancellationTokenSource { get; } = new CancellationTokenSource();
+
+        public CancellationToken HostAgentCancellationToken => this.hostAgentCancellationTokenSource.Token;
 
         public HostAgent(EnvironmentInfo environmentInfo)
         {
@@ -154,12 +158,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// Get task wrapper from dispatcher and save the task wrapper into the queue until meet the prefetch count or task end.
         /// </summary>
         /// <returns></returns>
-        private async Task GetTaskAsync()
+        internal async Task GetTaskAsync()
         {
             var getEmptyQueueCount = 0;
             var currentRetryCount = 0;
+            var token = this.HostAgentCancellationToken;
 
-            while (!this.isTaskEnd)
+            while (!this.isTaskEnd && !token.IsCancellationRequested)
             {
                 if (this.taskQueue.Count < this.prefetchCount)
                 {
@@ -220,9 +225,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task SendTaskToSvcAsync()
         {
-            var gui = Guid.NewGuid().ToString();
-            Console.WriteLine($"enter sendtask, thread: {Thread.CurrentThread.ManagedThreadId}, guid: {gui}");
-            
             while (true)
             {
                 if (!this.taskQueue.IsEmpty)
@@ -233,7 +235,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         if (this.taskQueue.TryDequeue(out wrapperTask))
                         {
                             var result = await this.CallMethodWrapperAsync(wrapperTask);
-                            Console.WriteLine($"thread: {Thread.CurrentThread.ManagedThreadId}, guid:{gui}, get reply");
                             await SendResultAsync(result);
                         }
                     }
@@ -262,7 +263,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// </summary>
         /// <param name="wrappedTask"></param>
         /// <returns>SendResultRequest which should be send to dispatcher.</returns>
-        private async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask wrappedTask)
+        internal async Task<SendResultRequest> CallMethodWrapperAsync(WrappedTask wrappedTask)
         {
             var innerTask = InnerTask.Parser.ParseFrom(wrappedTask.SerializedInnerTask);
             
@@ -310,19 +311,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
                 if (e is RpcException)
                 {
-                    var ex = e as RpcException;
-                    if (ex.StatusCode == StatusCode.Unknown)
-                    {
-                        failedResult.TaskState = TaskStateEnum.Finished;
-                        this.consecutiveFailedTask = 0;
-                        Console.WriteLine($"[Host agent] Catch exception and return FINISHED result to dispatcher.");
-                    }
-                    else
-                    {
-                        failedResult.TaskState = TaskStateEnum.Requeue;
-                        Interlocked.Increment(ref this.consecutiveFailedTask);
-                        Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
-                    }
+                    this.HandleRpcException((RpcException)e, ref failedResult);
                 }
                 else
                 {
@@ -361,13 +350,33 @@ namespace Microsoft.Telepathy.HostAgent.Core
             return result;
         }
 
+        private void HandleRpcException(RpcException ex, ref SendResultRequest failedResult)
+        {
+            if (this.IsServiceException(ex))
+            {
+                failedResult.TaskState = TaskStateEnum.Finished;
+                this.consecutiveFailedTask = 0;
+                Console.WriteLine($"[Host agent] Catch exception and return FINISHED result to dispatcher.");
+            }
+            else
+            {
+                failedResult.TaskState = TaskStateEnum.Requeue;
+                Interlocked.Increment(ref this.consecutiveFailedTask);
+                Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
+            }
+        }
+
+        private bool IsServiceException(RpcException ex) =>
+            (ex.StatusCode == StatusCode.Internal) || (ex.StatusCode == StatusCode.Unknown) ||
+                (ex.StatusCode == StatusCode.Unimplemented) || (ex.StatusCode == StatusCode.Unavailable);
+
         /// <summary>
         /// Call Unary method.
         /// </summary>
         /// <param name="callInvoker"></param>
         /// <param name="innerTask"></param>
         /// <returns>MessageWrapper from service.</returns>
-        private async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerTask innerTask)
+        internal async Task<MessageWrapper> HandleUnaryCall(CallInvoker callInvoker, InnerTask innerTask)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             var task = this.GetMessageWrapper(innerTask);
@@ -383,13 +392,13 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandlePortBindError((RpcException)e);
+                        this.HandleShouldNotRetryError((RpcException)e);
                     }
                     Trace.TraceError($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     Console.WriteLine($"[HandleUnaryCall] Error occured when calling AsyncUnaryCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 },
-                ()=>(this.IsSvcInitTimeout() && this.isSvcAvailable));
+                ()=> this.IsSvcInitTimeout());
             
             return result;
         }
@@ -461,12 +470,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     if (e is RpcException)
                     {
-                        this.HandlePortBindError((RpcException)e);
+                        this.HandleShouldNotRetryError((RpcException)e);
                     }
                     Trace.TraceError($"[HandleDuplexStreamingCall] Error occured when calling HandleDuplexStreamingCall: {e.Message}, retry count: {retry.RetryCount}");
                     return Task.CompletedTask;
                 },
-                () => (this.IsSvcInitTimeout() && this.isSvcAvailable));
+                () => this.IsSvcInitTimeout());
 
             return result;
         }
@@ -476,16 +485,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// </summary>
         /// <param name="result"></param>
         /// <returns></returns>
-        private async Task SendResultAsync(SendResultRequest result)
+        internal async Task<IMessage> SendResultAsync(SendResultRequest result)
         {
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             
-            await retry.RetryOperationAsync<object>(
+            return await retry.RetryOperationAsync<IMessage>(
                 async () =>
                 {
                     var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
-                    await this.dispatcherClient.SendResultAsync(result, callOptions);
-                    return null;
+                    return await this.dispatcherClient.SendResultAsync(result, callOptions);
                 },
                 (e) =>
                 {
@@ -507,12 +515,21 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
         }
 
-        private void HandlePortBindError(RpcException e)
+        private void HandleShouldNotRetryError(RpcException e)
         {
             if (e.StatusCode == StatusCode.Unavailable)
             {
                 Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
                 Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
+                if (this.IsSvcInitTimeout())
+                {
+                    throw e;
+                }
+            }
+            else if (e.StatusCode == StatusCode.Unimplemented)
+            {
+                Console.WriteLine($"[Host agent] Service not implemented error: {e.Message}");
+                Trace.TraceError($"[Host agent] Service not implemented error: {e.Message}");
                 if (this.IsSvcInitTimeout())
                 {
                     throw e;
@@ -537,7 +554,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         this.svcPort = port;
                         this.svcChannel = new Channel(this.svcHostName, this.svcPort, ChannelCredentials.Insecure);
                         this.isSvcAvailable = true;
-                        this.svcInitSw.Start();
                         return;
                     }
                     else
@@ -570,9 +586,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task MonitorSvc()
         {
-            while (true)
+            var token = this.HostAgentCancellationToken;
+            while (true && !token.IsCancellationRequested)
             {
-                if (this.svcProcess.HasExited)
+                if (this.svcProcess == null || this.svcProcess.HasExited)
                 {
                     this.isSvcAvailable = false;
                     this.svcInitSw = new Stopwatch();
@@ -589,6 +606,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task RetryToLoadSvc()
         {
+            this.svcInitSw.Start();
             var retry = new RetryManager(this.defaultRetryIntervalMs, this.maxRetries);
             await retry.RetryOperationAsync<object>(
                 () =>
@@ -610,7 +628,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// Check if service initialization timeout.
         /// </summary>
         /// <returns>True if service initialization timeout.</returns>
-        private bool IsSvcInitTimeout()
+        internal bool IsSvcInitTimeout()
         {
             if (!this.svcInitSw.IsRunning)
             {
@@ -628,13 +646,22 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         public void Dispose()
         {
-            if (!this.svcProcess.HasExited)
+            if (this.svcProcess != null && !this.svcProcess.HasExited)
             {
                 this.svcProcess.Kill();
             }
+            this.hostAgentCancellationTokenSource.Cancel();
             this.svcChannel.ShutdownAsync().Wait();
+            this.taskQueue.Clear();
 
             GC.SuppressFinalize(this);
+            Trace.TraceInformation("Host agent stopped.");
+        }
+
+        public void Stop()
+        {
+            this.hostAgentCancellationTokenSource.Cancel();
+            Trace.TraceInformation("Host agent stopped.");
         }
     }
 }
