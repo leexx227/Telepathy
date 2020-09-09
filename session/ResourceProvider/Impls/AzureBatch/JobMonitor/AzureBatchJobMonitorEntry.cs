@@ -53,8 +53,6 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private readonly IDatabase _cache;
 
-        private int failedTaskNum = 0;
-
         /// <summary>
         /// Initializes a new instance of the JobMonitorEntry class
         /// </summary>
@@ -69,7 +67,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         /// <summary>
         /// Gets the previous state
         /// </summary>
-        public SessionState CurrentState { get; private set; }
+        public SessionState PreviousState { get; private set; }
 
         /// <summary>
         /// Gets the session id
@@ -96,7 +94,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         public async Task<CloudJob> StartAsync()
         {
             //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitorEntry] Start monitor Entry.");
-            this.CurrentState = SessionState.Queued;
+            this.PreviousState = SessionState.Queued;
             this.CloudJob = await this._batchClient.JobOperations.GetJobAsync(AzureBatchSessionJobIdConverter.ConvertToAzureBatchJobId(this.SessionId));
 
             if (this.CloudJob.State == JobState.Disabled)
@@ -173,36 +171,21 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         /// </summary>
         private async void JobMonitor_OnReportJobState(SessionState state, List<TaskInfo> stateChangedTaskList, bool shouldExit)
         {
-            if (state != this.CurrentState)
+            if (state != this.PreviousState)
             {
                 lock (this.changeJobStateLock)
                 {
-                    if (state != this.CurrentState)
+                    if (state != this.PreviousState)
                     {
-                        this.CurrentState = state;
+                        this.PreviousState = state;
+                        Console.WriteLine($"[AzureBatchJobMonitorEntry] JobMonitor_OnReportJObState {SessionId} : update session state to {PreviousState}");
                         // Change the session state in Redis
-                        _cache.StringSet(SessionConfigurationManager.GetRedisSessionStateKey(SessionId),this.CurrentState.ToString());
+                        _cache.StringSet(SessionConfigurationManager.GetRedisSessionStateKey(SessionId), this.PreviousState.ToString());
                     }
                 }
             }
 
-            if (stateChangedTaskList != null)
-            {
-                //TODO: should make some decisions based on our policy to maintain a specified number of tasks
-                foreach (var task in stateChangedTaskList)
-                {
-                    if (task.State == Telepathy.Session.TaskState.Failed)
-                    {
-                        failedTaskNum++;
-                    }
-                }
-                //All tasks are failed, then fail the job directly.
-                if (failedTaskNum == MaxServiceInstance)
-                {
-                    shouldExit = true;
-                    CurrentState = SessionState.Failed;
-                }
-            }
+            Console.WriteLine($"[AzureBatchJobMonitorEntry] JobMonitor_OnReportJObState {SessionId}  : Current reported job state is {PreviousState}, should exit is {shouldExit} .");
 
             if (shouldExit)
             {

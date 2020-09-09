@@ -20,7 +20,9 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         public event EventHandler Exit;
 
-        private BatchClientState _currentState;
+        public BatchClientState CurrentQueueState { get; private set; }
+
+        private object changeQueueStateLock = new object();
 
         private NsqMonitor _batchQueueMonitor;
 
@@ -41,7 +43,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         public async Task StartAsync()
         {
-            this._currentState = BatchClientState.Initialized;
+            this.CurrentQueueState = BatchClientState.Initialized;
             _batchQueueMonitor = new NsqMonitor(SessionId, BatchId, _clientTimeout, this.BatchQueueMonitor_OnReportQueueState);
             try
             {
@@ -75,21 +77,31 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         private async void BatchQueueMonitor_OnReportQueueState(string batchId, BatchClientState state, bool shouldExit)
         {
-            Console.WriteLine($"[NsqMonitorEntry] SessionId is {SessionId}");
-            Console.WriteLine($"[NsqMonitorEntry] {batchId} : Current queue state is {state}");
-            //TODO: Update redis record
-            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
-            var storedClientState = _cache.HashGet(hashKey, BatchId).ToString();
-            if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()) ||
-                string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Exited.ToString()))
+            Console.WriteLine($"[NsqMonitorEntry] {BatchQueueId} : Current queue state is {state}");
+            if (CurrentQueueState != state)
             {
-                shouldExit = true;
+                lock (changeQueueStateLock)
+                {
+                    if (CurrentQueueState != state)
+                    {
+                        //Update stored batchclient state in Redis
+                        var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
+                        var storedClientState = _cache.HashGet(hashKey, BatchId).ToString();
+                        if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()) ||
+                            string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Exited.ToString()))
+                        {
+                            shouldExit = true;
+                        }
+                        else
+                        {
+                            HashEntry[] stateEntry = { new HashEntry(batchId, state.ToString()) };
+                            _cache.HashSet(hashKey, stateEntry);
+                        }
+                        CurrentQueueState = state;
+                    }
+                }
             }
-            else
-            {
-                HashEntry[] stateEntry = { new HashEntry(batchId, state.ToString())};
-                _cache.HashSet(hashKey, stateEntry);
-            }
+           
 
             if (shouldExit)
             {

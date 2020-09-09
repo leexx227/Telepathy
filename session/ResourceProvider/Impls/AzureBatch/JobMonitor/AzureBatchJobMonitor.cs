@@ -74,6 +74,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private SessionState previousJobState = SessionState.Creating;
 
+        private int SessionTimeout;
+
         private readonly IDatabase _cache;
 
         private SKU[] loadSKUs()
@@ -96,13 +98,13 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         private SKU[] skus;
 
         private int nodeCapacity;
-  
+ 
 
         /// <summary>
         /// Initializes a new instance of the JobMonitorEntry class
         /// </summary>
         /// <param name="sessionid">indicating the session id</param>
-        public AzureBatchJobMonitor(string sessionid, Action<SessionState, List<TaskInfo>, bool> reportJobStateAction)
+        public AzureBatchJobMonitor(string sessionid, Action<SessionState, List<TaskInfo>, bool> reportJobStateAction, int sessionTimeout = 10000)
         {
             this._sessionId = sessionid;
             this.batchClient = AzureBatchConfiguration.GetBatchClient();
@@ -110,6 +112,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
             this.lastChangeTime = SqlDateTime.MinValue.Value;
             this.skus = loadSKUs();
             this._cache = RedisDB.Connection.GetDatabase();
+            SessionTimeout = sessionTimeout;
         }
 
         /// <summary>
@@ -122,7 +125,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
             try
             {
-                await Task.Run(async () => await this.QueryJobChangeAsync());
+                await this.QueryJobChangeAsync();
             }
             catch (Exception e)
             {
@@ -151,6 +154,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
             ODATADetailLevel detailLevel = new ODATADetailLevel();
             detailLevel.SelectClause = "affinityId, ipAddress";
             var nodes = await pool.ListComputeNodes(detailLevel).ToListAsync();
+            DateTime sessionIdleTimestamp = DateTime.MinValue;
             while (true)
             {
                 if (shouldExit)
@@ -167,10 +171,6 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     state = this.cloudJob.State.HasValue ? this.cloudJob.State.Value : state;
                     currentJobState = await AzureBatchJobStateConverter.FromAzureBatchJobAsync(this.cloudJob);
 
-                    //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitor] Current job state in AzureBatch: JobState = {0}\n", state);
-                    //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitor] Current job state in Telepathy: JobState = {0}\n", currentJobState);
-
-                    //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitor] Previous job state report to AzureBatchJobMonitorEntry: JobState = {0}\n", previousJobState);
                     if (state == JobState.Completed || state == JobState.Disabled)
                     {
                         if (this.previousJobState == SessionState.Canceling)
@@ -186,12 +186,76 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         currentJobState = SessionState.Canceling;
                         //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitor] Overwrite current job state as {0} in Telepathy according to previous job state {1}\n", currentJobState, previousJobState);
                     }
+                    else if (currentJobState == SessionState.Failed)
+                    {
+                        shouldExit = true;
+                    }
+                    else if (currentJobState == SessionState.Running && this.previousJobState == SessionState.Completed)
+                    {
+                        currentJobState = SessionState.Completed;
+                    }
+                    else if (currentJobState == SessionState.Running || currentJobState == SessionState.Finishing)
+                    {
+                        //query all clients from Redis
+                        var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
+                        var allClientsState = _cache.HashValues(hashKey);
+                        bool allClientsTimeout = true;
+                        bool allClientsFinished = true;
+                        foreach (var clientState in allClientsState)
+                        {
+                            BatchClientState currentBatchClientState = (BatchClientState)Enum.Parse(typeof(BatchClientState), clientState.ToString());
+                            if (!currentBatchClientState.Equals(BatchClientState.EndOfResponse))
+                            {
+                                allClientsFinished = false;
+                            }
+                            else if (!currentBatchClientState.Equals(BatchClientState.Timeout))
+                            {
+                                allClientsTimeout = false;
+                            }
+
+                            if (!allClientsTimeout && !allClientsFinished)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (allClientsTimeout && currentJobState == SessionState.Running)
+                        {
+                            currentJobState = SessionState.Failed;
+                            shouldExit = true;
+                        }
+                        else if (allClientsFinished && this.previousJobState == SessionState.Idle)
+                        {
+                            //check if session is timeout to be idle state
+                            DateTime currentTime = DateTime.Now;
+
+                            if (sessionIdleTimestamp != DateTime.MinValue && (currentTime - sessionIdleTimestamp) >= TimeSpan.FromMilliseconds(SessionTimeout))
+                            {
+                                currentJobState = SessionState.Completed;
+
+                                //TODO:
+                                //Do resource clean up work later
+                            }
+                            else
+                            {
+                                currentJobState = SessionState.Idle;
+                            }
+                        }
+                        else if (allClientsFinished && currentJobState == SessionState.Running)
+                        {
+                            currentJobState = SessionState.Idle;
+                            sessionIdleTimestamp = DateTime.Now;
+                        }
+                        else if (!allClientsFinished && currentJobState == SessionState.Finishing)
+                        {
+                            currentJobState = SessionState.Canceling;
+                        }
+                    }
 
                     stateChangedTaskList = await this.GetTaskStateChangeAsync(nodes);
                 }
                 catch (BatchException e)
                 {
-                    //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Warning, "[AzureBatchJobMonitor] BatchException thrown when querying job info: {0}", e);
                     //If the previous job state is canceling and current job is not found, then the job is deleted.
                     if (e.RequestInformation != null & e.RequestInformation.HttpStatusCode != null)
                     {
@@ -205,7 +269,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                             else
                             {
                                 //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Warning, "[AzureBatchJobMonitor] The queried job previous state is {0}, we make its state as canceled because it's no longer exist.", previousJobState);
-                                Console.WriteLine($"The queried job previous state is {previousJobState}, we make its state cancled because it's no longer exist.");
+                                Console.WriteLine($"The queried job previous state is {previousJobState}, we make its state canceled because it's no longer exist.");
                             }
                             shouldExit = true;
                             currentJobState = SessionState.Canceled;
@@ -225,48 +289,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                             "[AzureBatchJobMonitor] Current job state report to AzureBatchJobMonitorEntry: JobState = {0}\n",
                             currentJobState);*/
 
-                        SessionState reportSessionState = currentJobState;
-                        //query all clients from Redis
-                        var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
-                        var allClientsState = _cache.HashValues(hashKey);
-                        bool allClientsIdle = true;
-                        bool allClientsTimeout = true;
-                        foreach (var clientState in allClientsState)
-                        {
-                            BatchClientState currentBatchClientState = (BatchClientState)Enum.Parse(typeof(BatchClientState),clientState.ToString());
-                            if (!currentBatchClientState.Equals(BatchClientState.EndOfResponse))
-                            {
-                                allClientsIdle = false;
-                            }
-                            if (!currentBatchClientState.Equals(BatchClientState.Timeout))
-                            {
-                                allClientsTimeout = false;
-                            }
-
-                            if (!allClientsTimeout && !allClientsIdle)
-                            {
-                                break;
-                            }
-                        }
-
-                        if (allClientsTimeout && this.previousJobState == SessionState.Running)
-                        {
-                            reportSessionState = SessionState.Failed;
-                            shouldExit = true;
-                        }
-                        else if (allClientsTimeout && this.previousJobState == SessionState.Idle)
-                        {
-                            reportSessionState = SessionState.Completed;
-                            shouldExit = true;
-                        }
-                        else if (allClientsIdle && this.previousJobState == SessionState.Running)
-                        {
-                            reportSessionState = SessionState.Idle;
-                        }
-
-                        //Update Redis session record 
-                        Console.WriteLine($"[AzureBatchJobMonitor] {_sessionId} : Current job state is {reportSessionState}");
-                        this.ReportJobStateAction(reportSessionState, stateChangedTaskList, shouldExit);
+                        Console.WriteLine($"[AzureBatchJobMonitor] {_sessionId} : Current job state is {currentJobState}");
+                        this.ReportJobStateAction(currentJobState, stateChangedTaskList, shouldExit);
                     }
                 }
                 catch (Exception e)
@@ -341,7 +365,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         TaskInfo info = new TaskInfo
                         {
                             Id = task.Id,
-                            State = TaskStateConverter.FromAzureBatchTaskState(task.State.Value, task.ExecutionInformation.Result.ToString())
+                            State = TaskStateConverter.FromAzureBatchTaskState(task.State.Value, task.ExecutionInformation.ExitCode.Value)
                         };
                         results.Add(info);
                     }

@@ -14,9 +14,9 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
             return TaskStateMapping[state];
         }
 
-        public static SessionTaskState FromAzureBatchTaskState(TaskState state, string executionResult)
+        public static SessionTaskState FromAzureBatchTaskState(TaskState state, int exitCode)
         {
-            if (executionResult == "Failure")
+            if (exitCode != 0)
             {
                 return SessionTaskState.Failed;
             }

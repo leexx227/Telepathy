@@ -17,11 +17,16 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         {
             //Handle job state Active independently in case of batch tasks are not running
             using (var batchClient = AzureBatchConfiguration.GetBatchClient())
-            {
+            {             
                 if (job.State == JobState.Active)
                 {
-                    ODATADetailLevel detail = new ODATADetailLevel(selectClause: "id,state");
+                    ODATADetailLevel detail = new ODATADetailLevel(selectClause: "id,state,executionInfo");
                     List<CloudTask> allTasks = await batchClient.JobOperations.ListTasks(job.Id, detail).ToListAsync();
+                    if (AllTasksFailed(allTasks))
+                    {
+                        return SessionState.Failed;
+                    }
+
                     if (allTasks.Exists(task => task.State == TaskState.Running))
                     {
                         return SessionState.Running;
@@ -30,16 +35,36 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                 }
                 else if (job.State == JobState.Terminating)
                 {
-                    ODATADetailLevel detail = new ODATADetailLevel(selectClause: "id,state");
+                    ODATADetailLevel detail = new ODATADetailLevel(selectClause: "id,state,executionInfo");
                     List<CloudTask> allTasks = await batchClient.JobOperations.ListTasks(job.Id, detail).ToListAsync();
-                    if (allTasks.Exists(task => task.State != TaskState.Completed))
+                    if (AllTasksFailed(allTasks))
                     {
-                        return SessionState.Canceling;
+                        return SessionState.Failed;
                     }
+                  
                     return SessionState.Finishing;
                 }
             }
             return JobStateMapping[job.State.Value];
+        }
+
+        private static bool AllTasksFailed(List<CloudTask> allTasks)
+        {
+            bool failedJob = true;
+            foreach (var task in allTasks)
+            {
+                if (task.State != TaskState.Completed)
+                {
+                    failedJob = false;
+                    break;
+                }
+                else if (task.State == TaskState.Completed && task.ExecutionInformation.ExitCode.Value == 0)
+                {
+                    failedJob = false;
+                    break;
+                }
+            }
+            return failedJob;
         }
 
         private static readonly Dictionary<JobState, SessionState> JobStateMapping = new Dictionary<JobState, SessionState>

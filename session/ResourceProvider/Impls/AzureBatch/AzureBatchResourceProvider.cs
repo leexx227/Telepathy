@@ -40,6 +40,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private static readonly string JobReleaseCmdLine = $@"cmd /c rd /s /q {AzureBatchPrepJobWorkingDir}";
 
+        private const string DispatcherIP = "172.16.0.10";
+
 
         // TODO: remove parameter less ctor and add specific parameters for the sake of test-ablity
         public AzureBatchResourceProvider()
@@ -145,7 +147,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         //TODO: get dispatcherIP from AKS API
                         env.Add(new EnvironmentSetting(SessionConstants.ServiceTimeoutEnvVar, initInfo.ServiceTimeout > 0 ? initInfo.ServiceTimeout.ToString() : registration.ServiceTimeout.ToString()));
                         //env.Add(new EnvironmentSetting(SessionConstants.DispatcherIPEnvVar, GetLocalIPv4(NetworkInterfaceType.Ethernet)));
-                        env.Add(new EnvironmentSetting(SessionConstants.DispatcherIPEnvVar, "10.94.201.221"));
+                        env.Add(new EnvironmentSetting(SessionConstants.DispatcherIPEnvVar, DispatcherIP));
                         env.Add(new EnvironmentSetting(SessionConstants.ServiceConcurrencyEnvVar, registration.ServiceConcurrency.ToString()));
                         env.Add(new EnvironmentSetting(SessionConstants.PrefetchCountEnvVar, initInfo.PrefetchCount > 0 ? initInfo.PrefetchCount.ToString() : registration.PrefetchCount.ToString()));
                         env.Add(new EnvironmentSetting(SessionConstants.ServiceFullPathEnvVar, registration.ServiceFullPath));

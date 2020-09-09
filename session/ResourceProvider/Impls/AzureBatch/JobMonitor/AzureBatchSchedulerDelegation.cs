@@ -110,29 +110,29 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
         /// </summary>
         /// <param name="sender">indicating the sender</param>
         /// <param name="e">indicating the event args</param>
-        private void JobMonitorEntry_Exit(object sender, EventArgs e)
+        private async void JobMonitorEntry_Exit(object sender, EventArgs e)
         {
             AzureBatchJobMonitorEntry entry = (AzureBatchJobMonitorEntry)sender;
             //Determine if job exits under error condition
-            JobState exitSessionState = entry.CurrentState;
+            JobState exitSessionState = entry.PreviousState;
             string sessionId = entry.SessionId;
             Console.WriteLine($"[AzureBatchSchedulerDelegation] {sessionId} : JobMonitorEntry_Exit, Exit session state is {exitSessionState}");
             switch (exitSessionState)
             {
                 case JobState.Completed: 
-                    FinishJobAsync(sessionId, "Job finishes successfully.");
+                    await FinishJobAsync(sessionId, "Job finishes successfully.");
                     break;
                 case JobState.Canceled:
-                    FinishJobAsync(sessionId, "Job is cancelled.");
+                    await FinishJobAsync(sessionId, "Job is cancelled.");
                     break;
                 case JobState.Failed:
-                    FailJobAsync(entry.SessionId, "Job is failed.");
+                    await FailJobAsync(sessionId, "Job is failed.");
                     break;
             }
             Debug.Assert(entry != null, "[AzureBatchSchedulerDelegation] Sender should be an instance of JobMonitorEntry class.");
             lock (this._jobMonitors)
             {
-                this._jobMonitors.Remove(entry.SessionId);
+                this._jobMonitors.Remove(sessionId);
             }
 
             entry.Exit -= new EventHandler(this.JobMonitorEntry_Exit);

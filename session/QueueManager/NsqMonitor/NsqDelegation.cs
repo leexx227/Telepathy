@@ -15,7 +15,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
     {
         private ConcurrentDictionary<string, NsqMonitorEntry> QueueMonitors = new ConcurrentDictionary<string, NsqMonitorEntry>();
 
-        public void RegisterBatchClient(string sessionId, string batchId, int clientTimeout)
+        public async Task RegisterBatchClient(string sessionId, string batchId, int clientTimeout)
         {
             Console.WriteLine($"[NsqDelegation] Start register batch client {batchId} for session {sessionId}.");
             var batchQueueId = SessionConfigurationManager.GetBatchClientQueueId(sessionId, batchId);
@@ -27,7 +27,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
             this.QueueMonitors[batchQueueId] = queueMonitorEntry;
 
-            queueMonitorEntry.StartAsync();
+            await queueMonitorEntry.StartAsync();
         }
 
         private void QueueMonitorEntry_Exit(object sender, EventArgs e)
@@ -35,7 +35,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             NsqMonitorEntry entry = (NsqMonitorEntry)sender;
             this.QueueMonitors.Remove(entry.BatchQueueId, out NsqMonitorEntry result);
             entry.Exit -= new EventHandler(this.QueueMonitorEntry_Exit);
-            Console.WriteLine($"[NsqDelegation] {entry.BatchQueueId} End: NsqMonitorEntry Exit.");
+            Console.WriteLine($"[NsqDelegation] {entry.BatchQueueId} End: NsqMonitorEntry Exit, exit state is {entry.CurrentQueueState}.");
         }
 
     }
