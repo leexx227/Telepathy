@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Telepathy.HostAgent.Common;
 
 namespace Microsoft.Telepathy.HostAgent.Core
@@ -11,8 +12,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
     class SvcLoader
     {
         private ProcessStartInfo processInfo;
-
-        private string cmd;
 
         private string program;
 
@@ -35,30 +34,26 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.program = pathList[pathList.Length-1];
 
             var workingDir = string.Join(Utility.GetFileSeparator(), pathList[0..(pathList.Length - 1)]);
+            this.processInfo.WorkingDirectory = workingDir;
 
             var language = Environment.GetEnvironmentVariable(HostAgentConstants.SvcLanguageEnvVar);
             Utility.ThrowIfNullOrEmpty(language, HostAgentConstants.SvcLanguageEnvVar);
             switch (language.ToLower())
             {
                 case HostAgentConstants.CsharpLanguage:
-                    this.cmd = HostAgentConstants.DotnetCommand;
+                    this.SetCsharpProgramInfo(svcFullPath);
                     break;
                 case HostAgentConstants.JavaLanguage:
-                    this.cmd = HostAgentConstants.JavaCommand;
-                    this.program = HostAgentConstants.JarPrefix + this.program;
+                    this.SetJavaProgramInfo();
                     break;
                 case HostAgentConstants.PythonLanguage:
-                    this.cmd = HostAgentConstants.PythonCommand;
+                    this.SetPythonProgramInfo(svcFullPath);
                     break;
                 default:
                     Console.WriteLine($"Only support csharp, java and python. Current language config: {language}.");
                     Trace.TraceError($"Only support csharp, java and python. Current language config: {language}.");
                     throw new InvalidOperationException($"Only support csharp, java and python.");
             }
-
-            this.processInfo.FileName = this.cmd;
-            this.processInfo.Arguments = this.program;
-            this.processInfo.WorkingDirectory = workingDir;
         }
 
         public Process LoadSvc(int svcPort)
@@ -81,6 +76,75 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 Console.WriteLine($"Error occured when starting service process: {e.Message}");
                 throw;
             }
+        }
+
+        private void SetCsharpProgramInfo(string svcFullPath)
+        {
+            if (this.program.EndsWith(".exe"))
+            {
+                this.processInfo.FileName = svcFullPath;
+                return;
+            }
+
+            if (this.program.EndsWith(".dll"))
+            {
+                this.processInfo.FileName = HostAgentConstants.DotnetCommand;
+                this.processInfo.Arguments = this.program;
+                return;
+            }
+
+            this.processInfo.FileName = svcFullPath;
+        }
+
+        private void SetJavaProgramInfo()
+        {
+            this.processInfo.FileName = HostAgentConstants.JavaCommand;
+            this.processInfo.Arguments = HostAgentConstants.JarPrefix + this.program;
+        }
+
+        private void SetPythonProgramInfo(string svcFullPath)
+        {
+            if (this.program.EndsWith(".exe"))
+            {
+                this.processInfo.FileName = svcFullPath;
+                return;
+            }
+
+            if (this.program.EndsWith(".py"))
+            {
+                var dependencyFilePath = this.processInfo.WorkingDirectory + Utility.GetFileSeparator() +
+                                         HostAgentConstants.PythonDependencyFile;
+                if (File.Exists(dependencyFilePath))
+                {
+                    var strCmdText = "install -r " + dependencyFilePath;
+                    var dependencyInstall = Process.Start("pip", strCmdText);
+                    while (!dependencyInstall.HasExited)
+                    {
+                        Console.WriteLine($"Install dependency......");
+                        Task.Delay(2000).Wait();
+                    }
+
+                    if (dependencyInstall.HasExited && dependencyInstall.ExitCode == 0)
+                    {
+                        Console.WriteLine($"Install dependency succeed.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Fail to install dependency. Please check if the requirements.txt file is correct.");
+                        throw new InvalidOperationException("Fail to install dependency");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Fail to find python dependency file: {HostAgentConstants.PythonDependencyFile}. Will not install any dependency package.");
+                }
+
+                this.processInfo.FileName = HostAgentConstants.PythonCommand;
+                this.processInfo.Arguments = this.program;
+                return;
+            }
+
+            this.processInfo.FileName = svcFullPath;
         }
     }
 }

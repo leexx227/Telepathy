@@ -26,6 +26,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string PythonCommand = "python";
         public const string WinFilePathSeparator = @"\";
         public const string UnixFilePathSeparator = @"/";
+        public const string PythonDependencyFile = "requirements.txt";
 
         public const int SearchPortStart = 5000;
         public const int DispatcherPort = 50051;
