@@ -117,7 +117,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 if (File.Exists(dependencyFilePath))
                 {
                     var strCmdText = "install -r " + dependencyFilePath;
-                    var dependencyInstall = Process.Start("pip", strCmdText);
+                    var dependencyInstall = Process.Start("pip3", strCmdText);
                     while (!dependencyInstall.HasExited)
                     {
                         Console.WriteLine($"Install dependency......");
