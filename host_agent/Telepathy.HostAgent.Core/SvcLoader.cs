@@ -136,10 +136,11 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 }
                 else
                 {
-                    Console.WriteLine($"Fail to find python dependency file: {HostAgentConstants.PythonDependencyFile}. Will not install any dependency package.");
+                    Console.WriteLine($"Fail to find python dependency file: {HostAgentConstants.PythonDependencyFile}. " +
+                                      $"Will not install any dependency package. This may cause the service failed if it relies on some external dependencies.");
                 }
 
-                this.processInfo.FileName = HostAgentConstants.PythonCommand;
+                this.processInfo.FileName = Utility.GetPythonCommand();
                 this.processInfo.Arguments = this.program;
                 return;
             }

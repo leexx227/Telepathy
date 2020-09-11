@@ -91,5 +91,18 @@ namespace Microsoft.Telepathy.HostAgent.Common
                 throw new ArgumentException($"{name} value can't be null or empty", name);
             }
         }
+
+        public static string GetPythonCommand()
+        {
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                    return HostAgentConstants.PythonCommand;
+                case PlatformID.Unix:
+                    return HostAgentConstants.Python3Command;
+                default:
+                    throw new NotSupportedException("Only support windows and linux OS.");
+            }
+        }
     }
 }

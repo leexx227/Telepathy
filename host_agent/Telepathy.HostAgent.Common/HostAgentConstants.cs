@@ -24,6 +24,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string DotnetCommand = "dotnet";
         public const string JavaCommand = "java";
         public const string PythonCommand = "python";
+        public const string Python3Command = "python3";
         public const string WinFilePathSeparator = @"\";
         public const string UnixFilePathSeparator = @"/";
         public const string PythonDependencyFile = "requirements.txt";
