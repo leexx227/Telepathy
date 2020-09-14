@@ -6,4 +6,8 @@
     <AssemblyName>Microsoft.Telepathy.HostAgent.Interface</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Telepathy.HostAgent.Common\Telepathy.HostAgent.Common.csproj" />
+  </ItemGroup>
+
 </Project>

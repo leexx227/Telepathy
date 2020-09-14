@@ -9,6 +9,7 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.Telepathy.HostAgent.Core;
 using Microsoft.Telepathy.ProtoBuf;
+using Microsoft.Telepathy.HostAgent.Interface;
 
 namespace Microsoft.Telepathy.HostAgent.UnitTest
 {

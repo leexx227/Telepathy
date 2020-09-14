@@ -1,10 +1,9 @@
-﻿using System;
+﻿using Microsoft.Telepathy.HostAgent.Common;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
-using Microsoft.Telepathy.HostAgent.Common;
 
-namespace Microsoft.Telepathy.HostAgent.Core
+namespace Microsoft.Telepathy.HostAgent.Interface
 {
     public class EnvironmentInfo
     {

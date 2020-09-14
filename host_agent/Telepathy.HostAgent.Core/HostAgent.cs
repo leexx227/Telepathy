@@ -655,7 +655,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.taskQueue.Clear();
 
             GC.SuppressFinalize(this);
-            Trace.TraceInformation("Host agent stopped.");
         }
 
         public void Stop()

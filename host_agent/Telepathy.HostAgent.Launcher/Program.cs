@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.Telepathy.HostAgent.Common;
 using Microsoft.Telepathy.HostAgent.Core;
+using Microsoft.Telepathy.HostAgent.Interface;
 
 namespace Microsoft.Telepathy.HostAgent.Launcher
 {
