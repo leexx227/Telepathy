@@ -33,8 +33,9 @@ message WrappedTask {
 message SendResultRequest {
     string session_id = 1;
     string task_id = 2; 
-    TaskStateEnum task_state = 3;
-    bytes serialized_inner_result = 4;
+    string client_id = 3;
+    TaskStateEnum task_state = 4;
+    bytes serialized_inner_result = 5;
 };
 
 service Dispatcher {
