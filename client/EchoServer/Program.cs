@@ -4,6 +4,7 @@ namespace Microsoft.Telepathy.EchoServer
 {
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Hosting;
+    using System;
 
     public class Program
     {
@@ -19,6 +20,8 @@ namespace Microsoft.Telepathy.EchoServer
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    var port = int.Parse(Environment.GetEnvironmentVariable("TELEPATHY_SVC_PORT"));
+                    webBuilder.UseUrls($"http://0.0.0.0:{port}");
                 });
     }
 }
