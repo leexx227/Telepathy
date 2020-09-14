@@ -47,11 +47,9 @@ namespace Microsoft.Telepathy.EchoClient
 
                         await client.EndTasksAsync();
 
-                        var result = await client.GetResultsAsync<EchoReply>();
-
-                        foreach (var reply in result)
+                        await foreach (var result in client.GetResultsAsync<EchoReply>())
                         {
-                            Console.WriteLine(reply.Message);
+                            Console.WriteLine("[{0}] {1}", DateTime.UtcNow, result.Message);
                         }
                     }
                 }

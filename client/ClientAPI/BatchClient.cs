@@ -189,11 +189,11 @@ namespace Microsoft.Telepathy.ClientAPI
             await clients[GetNextClient()].Value.EndTasksAsync(new ClientEndOfTaskRequest{BatchClientInfo = batchInfo, TotalRequestNumber = requestCount});
         }
 
-        public async Task<IEnumerable<TResponse>> GetResultsAsync<TResponse>() where TResponse : IMessage<TResponse>, new()
+        public async IAsyncEnumerable<TResponse> GetResultsAsync<TResponse>() where TResponse : IMessage<TResponse>, new()
         {
             var call = clients[0].Value.GetResults(batchInfo);
-            var result = new List<TResponse>();
 
+            //TODO fault message handler
             int faultCount = 0;
             var stringList = new List<string>();
 
@@ -202,7 +202,7 @@ namespace Microsoft.Telepathy.ClientAPI
                 if (res.StateCode == 0)
                 {
                     var v = new MessageParser<TResponse>(() => new TResponse());
-                    result.Add(v.ParseFrom(res.Msg));
+                    yield return v.ParseFrom(res.Msg);
                 }
                 else
                 {
@@ -216,8 +216,6 @@ namespace Microsoft.Telepathy.ClientAPI
                 Console.WriteLine("Fault message = " + faultCount);
                 stringList.ForEach(Console.WriteLine);
             }
-
-            return result;
         }
 
         private int GetNextClient()
