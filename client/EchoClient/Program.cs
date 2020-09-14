@@ -31,7 +31,7 @@ namespace Microsoft.Telepathy.EchoClient
             }
 
             SessionStartInfo info = new SessionStartInfo(config.HeadNode, config.ServiceName);
-            info.MaxServiceNum = 1;
+            info.MaxServiceNum = config.MaxServiceNum;
             Session session = null;
 
             try

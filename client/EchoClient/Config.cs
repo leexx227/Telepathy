@@ -34,8 +34,14 @@ namespace Microsoft.Telepathy.EchoClient
         private const string ParentJobIdsArg = "parentIds";
         private const string ServiceIdleSecArg = "serviceIdleSec";
         private const string ServiceHangSecArg = "serviceHangSec";
+        private const string MaxServiceNumArg = "max";
 
+        private int maxServiceNum = 1;
 
+        public int MaxServiceNum
+        {
+            get { return this.maxServiceNum; }
+        }
         private bool helpInfo = false;
         public bool HelpInfo
         {
@@ -173,6 +179,7 @@ namespace Microsoft.Telepathy.EchoClient
             this.helpInfo = parser.GetSwitch("?") || parser.GetSwitch("help");
             parser.TryGetArg<string>(HeadNodeArg, ref this.headNode);
             parser.TryGetArg<int>(RequestArg, ref this.numberOfRequest);
+            parser.TryGetArg<int>(MaxServiceNumArg, ref this.maxServiceNum);
             parser.TryGetArg<int>(TimeMSArg, ref this.callDurationMS);
             parser.TryGetArg<long>(SizeByteArg, ref this.messageSizeByte);
             parser.TryGetArg<int>(WarmupSecArg, ref this.warmupTimeSec);
@@ -200,14 +207,14 @@ namespace Microsoft.Telepathy.EchoClient
         public void PrintHelp()
         {
             Console.WriteLine();
-            Console.WriteLine("Usage: EchoClient.exe -headnode <HeadNode> -jobName <JobName> -serviceName <ServiceName> -numberOfRequests <10> -timeMS <0> -sizeByte <0> -resourceType:<core|node|socket|gpu> -min <N> -max <N> -priority <N> -jobTemplate <templateA> -environment <Environment> -username <Username> -password <Password> -azureQueue <True|False> -runtime <N Sec> -timeMSRandom <N>_<N> -sizeKBRandom <N>_<N> -msgTimeoutSec <N> -parentIds <id,id,...> -serviceIdleSec <N> -serviceHangSec <N>  -durable -insecure -shareSession -sessionPool -verbose");
+            Console.WriteLine("Usage: EchoClient.exe -headnode <HeadNode> -serviceName <ServiceName> -numberOfRequests <10> -timeMS <0> -sizeByte <0> -max <N>");
             Console.WriteLine();
-            Console.WriteLine("Usage: EchoClient.exe /headnode:<HeadNode> /jobName:<JobName> /serviceName:<ServiceName> /numberOfRequests:<10> /timeMS:<0> /sizeByte:<0> /resourceType:<core|node|socket|gpu> /min:<N> /max:<N> /priority:<N> /jobTemplate:<templateA> /environment:<Environment> /username:<Username> /password:<Password> /azureQueue:<True|False> /runtime:<N Sec> /timeMSRandom:<N>_<N> /sizeKBRandom:<N>_<N> /msgTimeoutSec:<N> /parentIds:<id,id,...> /serviceIdleSec:<N> /serviceHangSec:<N>  /durable /insecure /shareSession /sessionPool /verbose");
+            Console.WriteLine("Usage: EchoClient.exe /headnode:<HeadNode> /serviceName:<ServiceName> /numberOfRequests:<10> /timeMS:<0> /sizeByte:<0> /max:<N>");
             Console.WriteLine();
             Console.WriteLine("Sample: EchoClient.exe");
             Console.WriteLine("Sample: EchoClient.exe -h HeadNode -n 20");
-            Console.WriteLine("Sample: EchoClient.exe -h HeadNode -n 50 -max 10 -v");
-            Console.WriteLine("Sample: EchoClient.exe -h HeadNode -n 100 -time 5 -size 10 -max 20 -durable");
+            Console.WriteLine("Sample: EchoClient.exe -h HeadNode -n 50 -max 10");
+            Console.WriteLine("Sample: EchoClient.exe -h HeadNode -n 100 -time 5 -size 10 -max 20");
         }
 
         public bool PrintUsedParams(CmdParser parser)
