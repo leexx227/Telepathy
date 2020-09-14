@@ -15,15 +15,11 @@ namespace Microsoft.Telepathy.Frontend
 {
     public class Startup
     {
-        private readonly IConfiguration configuration;
-
-        public Startup(IConfiguration configuration)
+        public Startup()
         {
-            this.configuration = configuration;
-
-            Configuration.NsqAddress = configuration[Configuration.NsqAddrName];
-            Configuration.SessionServiceAddress = configuration[Configuration.SessionSvcAddrName];
-            Configuration.RedisConnectString = configuration[Configuration.RedisConnectStringName];
+            Configuration.NsqAddress = Environment.GetEnvironmentVariable(Configuration.NsqAddrName);
+            Configuration.SessionServiceAddress = Environment.GetEnvironmentVariable(Configuration.SessionSvcAddrName);
+            Configuration.RedisConnectString = Environment.GetEnvironmentVariable(Configuration.RedisConnectStringName);
         }
 
         public void ConfigureServices(IServiceCollection services)

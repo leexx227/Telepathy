@@ -20,11 +20,7 @@ namespace Microsoft.Telepathy.Frontend
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    var configBuilder = new ConfigurationBuilder()
-                        .SetBasePath(Directory.GetCurrentDirectory())
-                        .AddJsonFile("config.json", optional: true, reloadOnChange: true).Build();
-
-                    webBuilder.UseStartup<Startup>().UseConfiguration(configBuilder);
+                    webBuilder.UseStartup<Startup>();
                 });
     }
 }

@@ -8,11 +8,11 @@ namespace Microsoft.Telepathy.Frontend
 {
     public class Configuration
     {
-        public static string SessionSvcAddrName = "SessionServiceAddress";
+        public static string SessionSvcAddrName = "TELEPATHY_SESSION_HOST";
 
-        public static string NsqAddrName = "NsqAddress";
+        public static string NsqAddrName = "TELEPATHY_NSQ_HOST";
 
-        public static string RedisConnectStringName = "RedisConnectString";
+        public static string RedisConnectStringName = "TELEPATHY_REDIS_HOST";
         
         public static string SessionServiceAddress;
 
