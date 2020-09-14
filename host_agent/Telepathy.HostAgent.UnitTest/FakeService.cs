@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using Grpc.Core;
-using Microsoft.Telepathy.ProtoBuf;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.UnitTest
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+    using System.Threading.Tasks;
+    using Grpc.Core;
+
+    using Microsoft.Telepathy.ProtoBuf;
+
     public class FakeService : Echo.EchoBase
     {
         public static Server GetService(int port, object serviceImpl)

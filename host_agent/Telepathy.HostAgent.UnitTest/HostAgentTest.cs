@@ -1,18 +1,21 @@
-using Microsoft.Telepathy.HostAgent.Common;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
-using Microsoft.Telepathy.HostAgent.Core;
-using Microsoft.Telepathy.ProtoBuf;
-using Microsoft.Telepathy.HostAgent.Interface;
-
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.UnitTest
 {
+    using Microsoft.Telepathy.HostAgent.Common;
+    using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Google.Protobuf;
+    using Google.Protobuf.Reflection;
+    using Google.Protobuf.WellKnownTypes;
+    using Grpc.Core;
+
+    using Microsoft.Telepathy.HostAgent.Core;
+    using Microsoft.Telepathy.ProtoBuf;
+    using Microsoft.Telepathy.HostAgent.Interface;
+
     [TestClass]
     public class HostAgentTest
     {
@@ -36,7 +39,7 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
         private static WrappedTask wrappedTask = new WrappedTask { SerializedInnerTask = innerTask.ToByteString(), SessionState = SessionStateEnum.Running };
 
-        private static Microsoft.Telepathy.HostAgent.Core.HostAgent hostAgent;
+        private static HostAgent hostAgent;
 
         [TestInitialize]
         public void Initialize()
@@ -52,7 +55,7 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcTimeoutEnvVar, "500");
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcInitTimeoutEnvVar, "0");
 
-            hostAgent = new Microsoft.Telepathy.HostAgent.Core.HostAgent(new EnvironmentInfo());
+            hostAgent = new HostAgent(new EnvironmentInfo());
             hostAgent.maxRetries = 1;
         }
 

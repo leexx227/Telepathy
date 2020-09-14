@@ -1,10 +1,13 @@
-﻿using Microsoft.Telepathy.HostAgent.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Interface
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+
+    using Microsoft.Telepathy.HostAgent.Common;
+
     public class EnvironmentInfo
     {
         private string svcHostName = "localhost";

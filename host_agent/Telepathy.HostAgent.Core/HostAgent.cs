@@ -1,18 +1,21 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Google.Protobuf;
-using Grpc.Core;
-using Microsoft.Telepathy.HostAgent.Common;
-using Microsoft.Telepathy.HostAgent.Interface;
-using Microsoft.Telepathy.ProtoBuf;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Core
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Google.Protobuf;
+    using Grpc.Core;
+
+    using Microsoft.Telepathy.HostAgent.Common;
+    using Microsoft.Telepathy.HostAgent.Interface;
+    using Microsoft.Telepathy.ProtoBuf;
+
     public class HostAgent : IHostAgent, IDisposable
     {
         private Dispatcher.DispatcherClient dispatcherClient;

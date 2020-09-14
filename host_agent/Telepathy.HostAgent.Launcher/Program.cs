@@ -1,10 +1,13 @@
-﻿using System;
-using Microsoft.Telepathy.HostAgent.Common;
-using Microsoft.Telepathy.HostAgent.Core;
-using Microsoft.Telepathy.HostAgent.Interface;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Launcher
 {
+    using System;
+
+    using Microsoft.Telepathy.HostAgent.Common;
+    using Microsoft.Telepathy.HostAgent.Core;
+    using Microsoft.Telepathy.HostAgent.Interface;
+
     class Program
     {
         static void Main(string[] args)
@@ -12,7 +15,7 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
             //SetEnvironmentVariable();
             var environmentInfo = new EnvironmentInfo();
 
-            var hostAgent = new Microsoft.Telepathy.HostAgent.Core.HostAgent(environmentInfo);
+            var hostAgent = new HostAgent(environmentInfo);
 
             hostAgent.StartAsync().GetAwaiter().GetResult();
 

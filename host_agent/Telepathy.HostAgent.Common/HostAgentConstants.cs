@@ -1,5 +1,5 @@
-﻿using System;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Common
 {
     public class HostAgentConstants

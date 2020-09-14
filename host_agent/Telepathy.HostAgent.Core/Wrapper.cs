@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Google.Protobuf;
-using Grpc.Core;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Core
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+    using Google.Protobuf;
+    using Grpc.Core;
+
     public class MessageWrapper
     {
         public byte[] Msg;

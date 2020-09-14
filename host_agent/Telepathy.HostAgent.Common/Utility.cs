@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Text;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Common
 {
+    using System;
+    using System.Diagnostics;
+    using System.Net;
+    using System.Net.NetworkInformation;
+
     public class Utility
     {
         public static void TryGetEnvironmentVariable<T>(string variable, ref T result)

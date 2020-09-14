@@ -1,22 +1,25 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using Google.Protobuf;
-using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
-using Microsoft.Telepathy.ProtoBuf;
-using Type = System.Type;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.UnitTest
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Text;
+    using System.Threading.Tasks;
+    using Google.Protobuf;
+    using Google.Protobuf.WellKnownTypes;
+    using Grpc.Core;
+
+    using Microsoft.Telepathy.ProtoBuf;
+
     public class FakeDispatcher
     {
+
         public static Server GetDispatcher(int port, object dispathcherImpl)
         {
             Server server = new Server();
-            Type t = dispathcherImpl.GetType();
+            System.Type t = dispathcherImpl.GetType();
             if (t.Equals(typeof(Normal)))
             {
                 server = new Server
@@ -47,8 +50,6 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
         public class Normal : Dispatcher.DispatcherBase
         {
-            public ConcurrentQueue<SendResultRequest> ResultQueue = new ConcurrentQueue<SendResultRequest>();
-
             public override Task<WrappedTask> GetWrappedTask(GetTaskRequest request, ServerCallContext context)
             {
                 EchoRequest echoRequest = new EchoRequest() { Message = "hello", DelayTime = 0 };
@@ -60,11 +61,6 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
             public override Task<Empty> SendResult(SendResultRequest request, ServerCallContext context)
             {
-                this.ResultQueue.Enqueue(request);
-                Console.WriteLine($"length: {ResultQueue.Count}");
-                //var result = InnerResult.Parser.ParseFrom(request.SerializedInnerResult);
-                //var r = EchoReply.Parser.ParseFrom(result.Msg);
-                //Console.WriteLine($"Receive inner response: {r.Message}");
                 return Task.FromResult(new Empty());
             }
         }

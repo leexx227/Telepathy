@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Telepathy.HostAgent.Common;
-
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 namespace Microsoft.Telepathy.HostAgent.Core
 {
+    using System;
+    using System.Diagnostics;
+    using System.IO;
+    using System.Threading.Tasks;
+
+    using Microsoft.Telepathy.HostAgent.Common;
+
     class SvcLoader
     {
         private ProcessStartInfo processInfo;
