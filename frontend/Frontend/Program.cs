@@ -21,6 +21,8 @@ namespace Microsoft.Telepathy.Frontend
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    int port = args.Length > 0 ? int.Parse(args[0]) : 5005;
+                    webBuilder.UseUrls($"https://0.0.0.0:{port}");
                 });
     }
 }
