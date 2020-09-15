@@ -166,7 +166,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             var getEmptyQueueCount = 0;
             var currentRetryCount = 0;
             var token = this.HostAgentCancellationToken;
-
+            Stopwatch stopWatch = new Stopwatch();
             while (!this.isTaskEnd && !token.IsCancellationRequested)
             {
                 if (this.taskQueue.Count < this.prefetchCount)
@@ -175,7 +175,12 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     {
                         var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
                         var task = new GetTaskRequest(){SessionId = this.SessionId};
+                        stopWatch.Reset();
+                        stopWatch.Start();
                         var wrapperTask = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
+                        stopWatch.Stop();
+                        Console.WriteLine(String.Format("[Performance] [GetWrappedTaskAsync]: {0} ms", stopWatch.ElapsedMilliseconds));
+
                         if (wrapperTask.SessionState == SessionStateEnum.TempNoTask)
                         {
                             Console.WriteLine($"Find task empty");
@@ -228,6 +233,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task SendTaskToSvcAsync()
         {
+            Stopwatch stopWatch = new Stopwatch();
             while (true)
             {
                 if (!this.taskQueue.IsEmpty)
@@ -237,8 +243,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         WrappedTask wrapperTask;
                         if (this.taskQueue.TryDequeue(out wrapperTask))
                         {
+                            stopWatch.Reset();
+                            stopWatch.Start();
                             var result = await this.CallMethodWrapperAsync(wrapperTask);
+                            stopWatch.Stop();
+                            Console.WriteLine(String.Format("[Performance] [CallMethodWrapperAsync]: {0} ms", stopWatch.ElapsedMilliseconds));
+                            stopWatch.Reset();
+                            stopWatch.Start();
                             await SendResultAsync(result);
+                            stopWatch.Stop();
+                            Console.WriteLine(String.Format("[Performance] [SendResultAsync]: {0} ms", stopWatch.ElapsedMilliseconds));
                         }
                     }
                     else
