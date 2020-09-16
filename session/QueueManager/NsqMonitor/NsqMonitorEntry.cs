@@ -43,7 +43,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         public async Task StartAsync()
         {
-            this.CurrentQueueState = BatchClientState.Initialized;
+            this.CurrentQueueState = BatchClientState.Active;
             _batchQueueMonitor = new NsqMonitor(SessionId, BatchId, _clientTimeout, this.BatchQueueMonitor_OnReportQueueState);
             try
             {
@@ -88,7 +88,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                         var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
                         var storedClientState = _cache.HashGet(hashKey, BatchId).ToString();
                         if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()) ||
-                            string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Exited.ToString()))
+                            string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Closed.ToString()))
                         {
                             shouldExit = true;
                         }

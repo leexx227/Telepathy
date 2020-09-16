@@ -19,11 +19,6 @@ namespace Microsoft.Telepathy.Session
         Running,
 
         /// <summary>
-        /// The session has no request to handle currently
-        /// </summary>
-        Idle,
-
-        /// <summary>
         /// The session's requests have all been handled
         /// </summary>
         Completed,

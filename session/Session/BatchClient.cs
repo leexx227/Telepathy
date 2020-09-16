@@ -13,7 +13,7 @@ namespace Microsoft.Telepathy.Session
         {
             this.SessionId = sessionId;
             this.ClientId = clientId;
-            this.State = BatchClientState.Initialized;
+            this.State = BatchClientState.Active;
         }
     }
 }

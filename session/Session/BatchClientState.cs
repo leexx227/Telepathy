@@ -12,11 +12,6 @@ namespace Microsoft.Telepathy.Session
     public enum BatchClientState
     {
         /// <summary>
-        /// The session client is initialized
-        /// </summary>
-        Initialized,
-
-        /// <summary>
         /// The session client is active
         /// </summary>
         Active,
@@ -39,6 +34,6 @@ namespace Microsoft.Telepathy.Session
         /// <summary>
         /// The session client is closed by user
         /// </summary>
-        Exited
+        Closed
     }
 }

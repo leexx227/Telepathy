@@ -18,7 +18,7 @@ namespace Microsoft.Telepathy.Session.ServiceRegistration
     // TODO: TEST CASE 1 - mixed cases in service name
     public class AzureBlobServiceRegistrationStore : IServiceRegistrationStore
     {
-        private const string ServiceRegistrationBlobContainerName = "service-registration";
+        private const string ServiceRegistrationBlobContainerName = "service-registry";
 
         private readonly CloudBlobContainer _blobContainer;
 

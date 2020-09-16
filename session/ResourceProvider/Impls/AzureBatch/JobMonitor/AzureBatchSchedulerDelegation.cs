@@ -120,13 +120,13 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
             switch (exitSessionState)
             {
                 case JobState.Completed: 
-                    await FinishJobAsync(sessionId, "Job finishes successfully.");
+                    //await FinishJobAsync(sessionId, "Job finishes successfully.");
                     break;
                 case JobState.Canceled:
-                    await FinishJobAsync(sessionId, "Job is cancelled.");
+                    //await FinishJobAsync(sessionId, "Job is cancelled.");
                     break;
                 case JobState.Failed:
-                    await FailJobAsync(sessionId, "Job is failed.");
+                    //await FailJobAsync(sessionId, "Job is failed.");
                     break;
             }
             Debug.Assert(entry != null, "[AzureBatchSchedulerDelegation] Sender should be an instance of JobMonitorEntry class.");

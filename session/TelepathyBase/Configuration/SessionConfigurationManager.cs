@@ -15,7 +15,7 @@ namespace Microsoft.Telepathy.Common
     {
         public static string GetBatchClientQueueId(string sessionId, string batchId)
         {
-            return $"{{{sessionId}}}:{batchId}";
+            return $"{sessionId}.{batchId}";
         }
 
         public static string GetRedisBatchClientStateKey(string sessionId)

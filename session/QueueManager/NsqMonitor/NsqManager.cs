@@ -10,7 +10,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
     public class NsqManager
     {
-        private static TimeSpan RequestTimeout = new TimeSpan(5000);
+        private static TimeSpan RequestTimeout = new TimeSpan(0, 0, 0, 0, 5000);
         private static Lazy<List<NsqLookupdHttpClient>> _lookupdHttpClients = new Lazy<List<NsqLookupdHttpClient>>(() => ConstructLookupdClients());
 
         private static List<string> GetLookupdAddress()
@@ -41,6 +41,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                 try
                 {
                     NsqLookupdLookupResponse response = lookupdHttpClient.Lookup(topicName);
+                    
                     TopicProducerInformation[] producers = response.Producers;
                     foreach (var producer in producers)
                     {

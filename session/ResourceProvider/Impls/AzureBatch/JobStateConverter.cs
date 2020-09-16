@@ -31,6 +31,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     {
                         return SessionState.Running;
                     }
+
                     return SessionState.Queued;
                 }
                 else if (job.State == JobState.Terminating)

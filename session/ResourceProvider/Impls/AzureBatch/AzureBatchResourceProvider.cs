@@ -32,13 +32,21 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private const string RuntimeFolder = "hostagent";
 
-        private const string RuntimeExe = "Microsoft.Telepathy.HostAgent.Launcher.exe";
+        private const string RuntimeName = "Microsoft.Telepathy.HostAgent.Launcher.dll";
 
-        private const string AzureBatchPrepJobWorkingDir = "%AZ_BATCH_JOB_PREP_WORKING_DIR%";
+        private const string AzureBatchPrepJobWorkingDir = "AZ_BATCH_JOB_PREP_WORKING_DIR";
 
-        private static readonly string JobPrepCmdLine = @"cmd /c """;
+        private static readonly string WinJobPrepCmdLine = @"cmd /c """;
 
-        private static readonly string JobReleaseCmdLine = $@"cmd /c rd /s /q {AzureBatchPrepJobWorkingDir}";
+        private static readonly string LinuxJobPrepCmdLine = @"/bin/bash -c ''";
+
+        private static readonly string WinJobReleaseCmdLine = $@"cmd /c rd /s /q {AzureBatchPrepJobWorkingDir}";
+
+        private static readonly string LinuxJobReleaseCmdLine = $@"/bin/sh -c rm -rf {AzureBatchPrepJobWorkingDir}";
+
+        private readonly string taskInWindowsCmd = $@"cmd /c ""dotnet %{AzureBatchPrepJobWorkingDir}%\{RuntimeFolder}\{RuntimeName}""";
+
+        private readonly string taskInLinuxCmd = $@"/bin/bash -c 'dotnet ${AzureBatchPrepJobWorkingDir}/{RuntimeFolder}/{RuntimeName}'";
 
         private const string DispatcherIP = "172.16.0.10";
 
@@ -121,6 +129,12 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                 using (var batchClient = AzureBatchConfiguration.GetBatchClient())
                 {
                     var pool = await batchClient.PoolOperations.GetPoolAsync(AzureBatchConfiguration.AzureBatchPoolName);
+                    var vmOffer = pool.VirtualMachineConfiguration.NodeAgentSkuId.ToLower();
+                    bool winPool = true;
+                    if (!vmOffer.Contains("windows"))
+                    {
+                        winPool = false;
+                    }
                     ODATADetailLevel detailLevel = new ODATADetailLevel
                     {
                         SelectClause = "affinityId, ipAddress"
@@ -162,8 +176,9 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                                 env.Add(new EnvironmentSetting(entry.Key, entry.Value));
                             }
                         }
-                        //Establish a link via ev between TELEPATHY_SERVICE_WORKING_DIR and AZ_BATCH_JOB_PREP_WORKING_DIR
+                        //Establish a link via ev between TELEPATHY_SERVICE_WORKING_DIR and AZ_BATCH_JOB_PREP_WORKING_DIR                   
                         env.Add(new EnvironmentSetting(SessionConstants.TelepathyWorkingDirEnvVar, AzureBatchPrepJobWorkingDir));
+                      
                         return env;
                     }
 
@@ -192,7 +207,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         }
                         string newJobId = AzureBatchSessionJobIdConverter.ConvertToAzureBatchJobId(AzureBatchSessionIdGenerator.GenerateSessionId());
                         var job = batchClient.JobOperations.CreateJob(newJobId, new PoolInformation() { PoolId = AzureBatchConfiguration.AzureBatchPoolName });
-                        job.JobPreparationTask = new JobPreparationTask(JobPrepCmdLine);
+                        job.JobPreparationTask = new JobPreparationTask(winPool ? WinJobPrepCmdLine : LinuxJobPrepCmdLine);
                         job.JobPreparationTask.UserIdentity = new UserIdentity(new AutoUserSpecification(elevationLevel: ElevationLevel.Admin, scope: AutoUserScope.Task));
                         job.JobPreparationTask.ResourceFiles = new List<ResourceFile>()
                         {
@@ -200,7 +215,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                             GetResourceFileReference(ServiceContainer,initInfo.ServiceName.ToLower())
                         };
 
-                        job.JobReleaseTask = new JobReleaseTask(JobReleaseCmdLine);
+                        job.JobReleaseTask = new JobReleaseTask(winPool ? WinJobReleaseCmdLine : LinuxJobReleaseCmdLine);
                         job.JobReleaseTask.UserIdentity = new UserIdentity(new AutoUserSpecification(elevationLevel: ElevationLevel.Admin, scope: AutoUserScope.Task));
 
                         // Set Meta Data
@@ -256,8 +271,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
                         CloudTask CreateTask(string taskId)
                         {
-                            CloudTask cloudTask = new CloudTask(taskId, $@"cmd /c ""%{ SessionConstants.TelepathyWorkingDirEnvVar}%\{RuntimeFolder}\{RuntimeExe}"" ");
-                            cloudTask.UserIdentity = new UserIdentity(new AutoUserSpecification(elevationLevel: ElevationLevel.Admin, scope: AutoUserScope.Pool));
+                            CloudTask cloudTask = new CloudTask(taskId, winPool ? taskInWindowsCmd : taskInLinuxCmd);
+                            cloudTask.UserIdentity = new UserIdentity(new AutoUserSpecification(scope: AutoUserScope.Task));
                             cloudTask.EnvironmentSettings = cloudTask.EnvironmentSettings == null ? environment : environment.Union(cloudTask.EnvironmentSettings, comparer).ToList();
                             return cloudTask;
                         }

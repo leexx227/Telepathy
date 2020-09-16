@@ -170,7 +170,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     this.cloudJob = await this.batchClient.JobOperations.GetJobAsync(this.cloudJob.Id);
                     state = this.cloudJob.State.HasValue ? this.cloudJob.State.Value : state;
                     currentJobState = await AzureBatchJobStateConverter.FromAzureBatchJobAsync(this.cloudJob);
-
+                    Console.WriteLine($"Current job state from AzureBatchJobStateConverter is {currentJobState}");
                     if (state == JobState.Completed || state == JobState.Disabled)
                     {
                         if (this.previousJobState == SessionState.Canceling)
@@ -219,8 +219,9 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                             }
                         }
 
-                        if (allClientsTimeout && currentJobState == SessionState.Running)
+                    /*    if (allClientsTimeout && currentJobState == SessionState.Running)
                         {
+                            Console.WriteLine($"[AzureBatchJobMonitor] All batch clients are timeout and session will be set Running.");
                             currentJobState = SessionState.Failed;
                             shouldExit = true;
                         }
@@ -250,6 +251,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         {
                             currentJobState = SessionState.Canceling;
                         }
+                    */
                     }
 
                     stateChangedTaskList = await this.GetTaskStateChangeAsync(nodes);

@@ -65,7 +65,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
         private async Task QueryQueueChangeAsync()
         {
             Console.WriteLine($"[NsqMonitor] Start to monitor batch queue {_batchQueueId}");
-            BatchClientState previousClientState = BatchClientState.Initialized;
+            BatchClientState previousClientState = BatchClientState.Active;
             BatchClientState currentClientState = previousClientState;
             DateTime lastChangeTime = DateTime.Now;
             bool shouldExit = false;
@@ -80,7 +80,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                 var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
                 var storedClientState = _cache.HashGet(hashKey, _batchId).ToString();
                 if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()) ||
-                    string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Exited.ToString()))
+                    string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Closed.ToString()))
                 {
                     shouldExit = true;
                     ReportBatchClientStateAction(_batchId, (BatchClientState)Enum.Parse(typeof(BatchClientState),storedClientState), shouldExit);
@@ -94,7 +94,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                     if (requestNumber > 0)
                     {
                         lastChangeTime = DateTime.Now;
-                        if (previousClientState == BatchClientState.Initialized)
+                        if (previousClientState == BatchClientState.Active)
                         {
                             currentClientState = BatchClientState.Active;
                             ReportBatchClientStateAction(_batchId, currentClientState, shouldExit);

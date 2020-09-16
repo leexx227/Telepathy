@@ -30,7 +30,7 @@ namespace Microsoft.Telepathy.Session
             //Add batch client info in Redis
             var setKey = SessionConfigurationManager.GetRedisBatchClientIdKey(SessionId);
             _cache.SetAdd(setKey, clientId);
-            HashEntry[] clientEntry = { new HashEntry(clientId, BatchClientState.Initialized.ToString()) };
+            HashEntry[] clientEntry = { new HashEntry(clientId, BatchClientState.Active.ToString()) };
             var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
             _cache.HashSet(hashKey, clientEntry);
         }
@@ -49,7 +49,7 @@ namespace Microsoft.Telepathy.Session
             var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
             var storedState = (BatchClientState)Enum.Parse(typeof(BatchClientState),_cache.HashGet(hashKey, clientId).ToString());
             //Only previous state is not an end state, the update operation can execute
-            if (storedState == BatchClientState.Timeout || storedState == BatchClientState.Exited)
+            if (storedState == BatchClientState.Timeout || storedState == BatchClientState.Closed)
             {
                 return false;
             }
