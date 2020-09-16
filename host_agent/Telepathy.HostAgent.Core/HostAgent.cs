@@ -32,10 +32,6 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private int defaultRetryIntervalMs = 1000;
 
-        private int checkQueueLengthIntervalMs = 2000;
-
-        private int checkQueueEmptyIntervalMs = 1000;
-
         private int checkSvcAvailableIntervalMs = 2000;
 
         private int waitForSvcAvailableIntervalMs = 2000;
@@ -44,7 +40,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         internal int maxRetries = 3;
 
-        internal ConcurrentQueue<WrappedTask> taskQueue = new ConcurrentQueue<WrappedTask>();
+        internal BlockingCollection<WrappedTask> taskCache;
 
         internal int prefetchCount { get; }
 
@@ -97,6 +93,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
             this.SessionId = environmentInfo.SessionId;
 
             this.svcLoader = new SvcLoader();
+
+            this.taskCache = new BlockingCollection<WrappedTask>(new ConcurrentQueue<WrappedTask>(), this.prefetchCount);
         }
 
         private bool ParameterValid(EnvironmentInfo info) => this.SvcTargetValid(info) && this.DispatcherTargetValid(info) && this.SessionIdValid(info) &&
@@ -158,66 +156,74 @@ namespace Microsoft.Telepathy.HostAgent.Core
         }
 
         /// <summary>
-        /// Get task wrapper from dispatcher and save the task wrapper into the queue until meet the prefetch count or task end.
+        /// Get task wrapper from dispatcher and save the task wrapper into the cache until meet the prefetch count or task end.
         /// </summary>
         /// <returns></returns>
         internal async Task GetTaskAsync()
         {
-            var getEmptyQueueCount = 0;
+            var getEmptyTaskCount = 0;
             var currentRetryCount = 0;
             var token = this.HostAgentCancellationToken;
 
             while (!this.isTaskEnd && !token.IsCancellationRequested)
             {
-                if (this.taskQueue.Count < this.prefetchCount)
+                try
                 {
-                    try
+                    var callOptions =
+                        new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
+                    var task = new GetTaskRequest() {SessionId = this.SessionId};
+                    var wrapperTask = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
+                    if (wrapperTask.SessionState == SessionStateEnum.TempNoTask)
                     {
-                        var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(this.dispatcherTimeoutMs));
-                        var task = new GetTaskRequest(){SessionId = this.SessionId};
-                        var wrapperTask = await this.dispatcherClient.GetWrappedTaskAsync(task, callOptions);
-                        if (wrapperTask.SessionState == SessionStateEnum.TempNoTask)
-                        {
-                            Console.WriteLine($"Find task empty");
-                            getEmptyQueueCount++;
-                            await Task.Delay(this.defaultRetryIntervalMs /** getEmptyQueueCount*/);
-                        }
-
-                        if (wrapperTask.SessionState == SessionStateEnum.EndTask)
-                        {
-                            Console.WriteLine("Task end.");
-                            this.isTaskEnd = true;
-                        }
-                        if(wrapperTask.SessionState == SessionStateEnum.Running)
-                        {
-                            Console.WriteLine("Get healthy task.");
-                            this.taskQueue.Enqueue(wrapperTask);
-                            getEmptyQueueCount = 0;
-                            currentRetryCount = 0;
-                        }
+                        Console.WriteLine($"Find task empty");
+                        getEmptyTaskCount++;
+                        await Task.Delay(this.defaultRetryIntervalMs /** getEmptyTaskCount*/);
                     }
-                    catch (Exception e)
+
+                    if (wrapperTask.SessionState == SessionStateEnum.EndTask)
                     {
-                        if (currentRetryCount < this.maxRetries)
-                        {
-                            Console.WriteLine($"[GetTaskAsync] Error occured when getting task from dispatcher: {e.Message}, retry count: {currentRetryCount}");
-                            Trace.TraceError($"[GetTaskAsync] Error occured when getting task from dispatcher: {e.Message}, retry count: {currentRetryCount}");
-                            currentRetryCount++;
-                            await Task.Delay(this.defaultRetryIntervalMs);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
-                            Trace.TraceError($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
-                            throw;
-                        }
+                        Console.WriteLine("Task end.");
+                        this.isTaskEnd = true;
+                    }
+
+                    if (wrapperTask.SessionState == SessionStateEnum.Running)
+                    {
+                        Console.WriteLine("Get healthy task.");
+                        this.taskCache.Add(wrapperTask, token);
+                        getEmptyTaskCount = 0;
+                        currentRetryCount = 0;
                     }
                 }
-                else
+                catch (OperationCanceledException e)
                 {
-                    Console.WriteLine($"[GetTaskAsync] Prefetch task enough. Expected prefetch count: {this.prefetchCount}, current task queue length: {this.taskQueue.Count}.");
-                    Trace.TraceInformation($"[GetTaskAsync] Prefetch task enough. Expected prefetch count: {this.prefetchCount}, current task queue length: {this.taskQueue.Count}.");
-                    await Task.Delay(this.checkQueueLengthIntervalMs);
+                    Console.WriteLine($"[GetTaskAsync] Canceled. {e.Message}");
+                    break;
+                }
+                catch (ObjectDisposedException e)
+                {
+                    Console.WriteLine($"[GetTaskAsync] Task cache disposed. {e.Message}");
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                    Console.WriteLine("[GetTaskAsync] Task cache completed.");
+                    throw;
+                }
+                catch (Exception e)
+                {
+                    if (currentRetryCount < this.maxRetries)
+                    {
+                        Console.WriteLine($"[GetTaskAsync] Error occured when getting task from dispatcher: {e.Message}, retry count: {currentRetryCount}");
+                        Trace.TraceError($"[GetTaskAsync] Error occured when getting task from dispatcher: {e.Message}, retry count: {currentRetryCount}");
+                        currentRetryCount++;
+                        await Task.Delay(this.defaultRetryIntervalMs);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
+                        Trace.TraceError($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
+                        throw;
+                    }
                 }
             }
         }
@@ -228,35 +234,35 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task SendTaskToSvcAsync()
         {
-            while (true)
+            var token = this.HostAgentCancellationToken;
+            while (!token.IsCancellationRequested)
             {
-                if (!this.taskQueue.IsEmpty)
+                if (this.isSvcAvailable)
                 {
-                    if (this.isSvcAvailable)
+                    try
                     {
-                        WrappedTask wrapperTask;
-                        if (this.taskQueue.TryDequeue(out wrapperTask))
-                        {
-                            var result = await this.CallMethodWrapperAsync(wrapperTask);
-                            await SendResultAsync(result);
-                        }
+                        var wrappedTask = this.taskCache.Take(token);
+                        var result = await this.CallMethodWrapperAsync(wrappedTask);
+                        await this.SendResultAsync(result);
                     }
-                    else
+                    catch (OperationCanceledException e)
                     {
-                        await Task.Delay(this.waitForSvcAvailableIntervalMs);
+                        Console.WriteLine($"[SendTaskToSvcAsync] Canceled. {e.Message}");
+                        break;
+                    }
+                    catch (ObjectDisposedException e)
+                    {
+                        Console.WriteLine($"[SendTaskToSvcAsync] Task cache disposed. {e.Message}");
+                    }
+                    catch (InvalidOperationException e)
+                    {
+                        Console.WriteLine($"[SendTaskToSvcAsync] Task cache completed. {e.Message}");
+                        throw;
                     }
                 }
                 else
                 {
-                    if (this.isTaskEnd)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        Trace.TraceInformation($"[SendTaskToSvcAsync] Task queue is empty.");
-                        await Task.Delay(this.checkQueueEmptyIntervalMs);
-                    }
+                    await Task.Delay(this.waitForSvcAvailableIntervalMs);
                 }
             }
         }
@@ -590,10 +596,11 @@ namespace Microsoft.Telepathy.HostAgent.Core
         private async Task MonitorSvc()
         {
             var token = this.HostAgentCancellationToken;
-            while (true && !token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
                 if (this.svcProcess == null || this.svcProcess.HasExited)
                 {
+                    Console.WriteLine("[MonitorSvc] Service down.");
                     this.isSvcAvailable = false;
                     this.svcInitSw = new Stopwatch();
                     await this.RetryToLoadSvc();
@@ -655,7 +662,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
             this.hostAgentCancellationTokenSource.Cancel();
             this.svcChannel.ShutdownAsync().Wait();
-            this.taskQueue.Clear();
+            this.taskCache.Dispose();
 
             GC.SuppressFinalize(this);
         }
@@ -663,6 +670,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
         public void Stop()
         {
             this.hostAgentCancellationTokenSource.Cancel();
+            this.taskCache = new BlockingCollection<WrappedTask>(this.prefetchCount);
             Trace.TraceInformation("Host agent stopped.");
         }
     }

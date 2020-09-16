@@ -68,10 +68,9 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
             var task = hostAgent.GetTaskAsync();
             await Task.Delay(2000);
-            hostAgent.Stop();
 
-            Assert.AreEqual(hostAgent.prefetchCount, hostAgent.taskQueue.Count);
-            hostAgent.taskQueue.Clear();
+            Assert.AreEqual(hostAgent.prefetchCount, hostAgent.taskCache.Count);
+            hostAgent.Stop();
             dispatcher.ShutdownAsync().Wait();
         }
 
@@ -83,9 +82,9 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
             var task = hostAgent.GetTaskAsync();
             await Task.Delay(2000);
-            hostAgent.Stop();
 
-            Assert.AreEqual(0, hostAgent.taskQueue.Count);
+            Assert.AreEqual(0, hostAgent.taskCache.Count);
+            hostAgent.Stop();
             dispatcher.ShutdownAsync().Wait();
         }
 
@@ -97,7 +96,8 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
 
             await hostAgent.GetTaskAsync();
 
-            Assert.AreEqual(0, hostAgent.taskQueue.Count);
+            Assert.AreEqual(0, hostAgent.taskCache.Count);
+            hostAgent.Stop();
             dispatcher.ShutdownAsync().Wait();
         }
 
@@ -113,7 +113,7 @@ namespace Microsoft.Telepathy.HostAgent.UnitTest
             Assert.AreEqual(new Empty(), reply);
             dispatcher.ShutdownAsync().Wait();
         }
-
+        
         [TestMethod]
         public async Task HandleUnaryCallTest1()
         {
