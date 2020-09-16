@@ -2,6 +2,7 @@
 // Licensed under the MIT license.
 
 
+using System.Reflection.Metadata.Ecma335;
 
 namespace Microsoft.Telepathy.Common
 {
@@ -20,16 +21,31 @@ namespace Microsoft.Telepathy.Common
 
         public static string GetRedisBatchClientStateKey(string sessionId)
         {
+            //hashset
             return $"{{{sessionId}}}:batchState";
+        }
+
+        public static string GetRedisBatchClientTotalTasksKey(string sessionId, string batchId)
+        {
+            //string
+            return $"{{{sessionId}}}:{batchId}:totalTasks";
+        }
+
+        public static string GetRedisBatchClientFinishTasksKey(string sessionId, string batchId)
+        {
+            //string
+            return $"{{{sessionId}}}:{batchId}:finishTasks";
         }
 
         public static string GetRedisBatchClientIdKey(string sessionId)
         {
+            //set
             return $"{{{sessionId}}}:batchIds";
         }
 
         public static string GetRedisSessionStateKey(string sessionId)
         {
+            //string
             return $"{{{sessionId}}}:state";
         }
 

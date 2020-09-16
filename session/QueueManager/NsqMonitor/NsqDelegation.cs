@@ -15,7 +15,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
     {
         private ConcurrentDictionary<string, NsqMonitorEntry> QueueMonitors = new ConcurrentDictionary<string, NsqMonitorEntry>();
 
-        public async Task RegisterBatchClient(string sessionId, string batchId, int clientTimeout)
+        public async Task RegisterBatchClientAsync(string sessionId, string batchId, int clientTimeout)
         {
             Console.WriteLine($"[NsqDelegation] Start register batch client {batchId} for session {sessionId}.");
             var batchQueueId = SessionConfigurationManager.GetBatchClientQueueId(sessionId, batchId);

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using Microsoft.Extensions.Primitives;
 using Microsoft.Telepathy.Common;
 using StackExchange.Redis;
 
@@ -29,7 +30,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         private int _pullQueueGap = PullQueueMinGap;
 
-        private int _clientTimeout;
+        private readonly int _clientTimeout;
 
         public event EventHandler Exit;
 
@@ -39,6 +40,10 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         private IDatabase _cache;
 
+        private int _totalTaskNumber = 0;
+
+        private int _historyTaskNumber = 0;
+
         public NsqMonitor(string sessionId, string batchId, int clientTimeout, Action<string, BatchClientState, bool> reportBatchClientStateAction)
         {
             this._sessionId = sessionId;
@@ -46,7 +51,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             this._clientTimeout = clientTimeout;
             this.ReportBatchClientStateAction = reportBatchClientStateAction;
             this._batchQueueId = SessionConfigurationManager.GetBatchClientQueueId(sessionId, batchId);
-            this._nsqdHttpClients = NsqManager.GetAllNsqdClients(_batchQueueId);
+            this._nsqdHttpClients = NsqManager.GetAllNsqdClients(_batchQueueId, _clientTimeout);
             _cache = RedisDB.Connection.GetDatabase();
         }
 
@@ -54,6 +59,15 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
         {
             try
             {
+                if (_nsqdHttpClients.Count == 0)
+                {
+                    var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
+                    HashEntry[] clientEntry = { new HashEntry(_batchId, BatchClientState.Timeout.ToString()) };
+                    _cache.HashSet(hashKey, clientEntry);
+                    ReportBatchClientStateAction?.Invoke(_batchId, BatchClientState.Timeout, true);
+                    return;
+                }
+
                 await this.QueryQueueChangeAsync();
             }
             catch (Exception e)
@@ -75,44 +89,60 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                 {
                     break;
                 }
-
-                //Check from redis to get current client state if set as EndOfRequest or EndOfResponse or Exited
-                var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
-                var storedClientState = _cache.HashGet(hashKey, _batchId).ToString();
-                if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()) ||
-                    string.Equals(storedClientState, BatchClientState.EndOfResponse.ToString()) || string.Equals(storedClientState, BatchClientState.Closed.ToString()))
-                {
-                    shouldExit = true;
-                    ReportBatchClientStateAction(_batchId, (BatchClientState)Enum.Parse(typeof(BatchClientState),storedClientState), shouldExit);
-                    break;
-                }
-
                 try
                 {
-                    int requestNumber = NsqManager.GetRequestNumber(this._nsqdHttpClients, this._batchQueueId);
-                    Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Current queue requests number is {requestNumber}");
-                    if (requestNumber > 0)
+                    //Check from redis to get current client state if set as EndOfRequest or EndOfResponse or Exited
+                    var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
+                    var storedClientState = _cache.HashGet(hashKey, _batchId).ToString();
+                    if (BatchClient.IsEndState(Enum.Parse<BatchClientState>(storedClientState)))
                     {
-                        lastChangeTime = DateTime.Now;
-                        if (previousClientState == BatchClientState.Active)
-                        {
-                            currentClientState = BatchClientState.Active;
-                            ReportBatchClientStateAction(_batchId, currentClientState, shouldExit);
-                        }
+                        shouldExit = true;
+                        ReportBatchClientStateAction(_batchId, (BatchClientState)Enum.Parse(typeof(BatchClientState), storedClientState), shouldExit);
+                        break;
                     }
-                    else
+                    if (string.Equals(storedClientState, BatchClientState.EndOfRequest.ToString()))
                     {
-                        //client is timeout
-                        DateTime currentTime = DateTime.Now;
-                        if ((currentTime - lastChangeTime) >= TimeSpan.FromMilliseconds(_clientTimeout))
+                        _totalTaskNumber = _totalTaskNumber == 0 ? (int)_cache.StringGet(SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(_sessionId, _batchId)) : _totalTaskNumber;
+                        //Check the response number to determine current batch client if EndOfResponse
+                        var finishTasksKey =
+                            SessionConfigurationManager.GetRedisBatchClientFinishTasksKey(_sessionId, _batchId);
+                        var finishTasksNum = _cache.SetLength(finishTasksKey);
+                        if (_totalTaskNumber == finishTasksNum)
                         {
-                            currentClientState = BatchClientState.Timeout;
+                            currentClientState = BatchClientState.EndOfResponse;
+                            HashEntry[] clientEntry = { new HashEntry(_batchId, currentClientState.ToString()) };
+                            _cache.HashSet(hashKey, clientEntry);
                             shouldExit = true;
+                        }
+
+                    }
+                    else if (string.Equals(storedClientState, BatchClientState.Active.ToString()))
+                    {
+                        int currentTaskNumber = NsqManager.GetRequestNumber(this._nsqdHttpClients, this._batchQueueId);
+                        Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Current queue requests number is {currentTaskNumber}");
+                        if (currentTaskNumber - _historyTaskNumber > 0)
+                        {
+                            lastChangeTime = DateTime.Now;
+                            currentClientState = BatchClientState.Active;
+                            _historyTaskNumber = currentTaskNumber;
                             ReportBatchClientStateAction(_batchId, currentClientState, shouldExit);
                         }
+                        else
+                        {
+                            //client is timeout
+                            DateTime currentTime = DateTime.Now;
+                            if ((currentTime - lastChangeTime) >= TimeSpan.FromMilliseconds(_clientTimeout))
+                            {
+                                currentClientState = BatchClientState.Timeout;
+                                shouldExit = true;
+                                ReportBatchClientStateAction(_batchId, currentClientState, shouldExit);
+                            }
+                        }
                     }
+
                     Console.WriteLine($"[NsqMonitor] {_batchQueueId} => PreviousClientState is {previousClientState}");
                     Console.WriteLine($"[NspMonitor] {_batchQueueId} => CurrentClientState is {currentClientState}");
+
                 }
                 catch (Exception e)
                 {

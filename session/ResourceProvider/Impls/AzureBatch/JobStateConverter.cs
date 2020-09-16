@@ -43,7 +43,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                         return SessionState.Failed;
                     }
                   
-                    return SessionState.Finishing;
+                    return SessionState.Closing;
                 }
             }
             return JobStateMapping[job.State.Value];
@@ -59,7 +59,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     failedJob = false;
                     break;
                 }
-                else if (task.State == TaskState.Completed && task.ExecutionInformation.ExitCode.Value == 0)
+                
+                if (task.ExecutionInformation.ExitCode == 0)
                 {
                     failedJob = false;
                     break;
@@ -70,7 +71,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private static readonly Dictionary<JobState, SessionState> JobStateMapping = new Dictionary<JobState, SessionState>
         {
-            { JobState.Completed, SessionState.Finished},
+            { JobState.Completed, SessionState.Closed},
             { JobState.Deleting, SessionState.Canceling},
             { JobState.Disabled, SessionState.Queued},
             { JobState.Disabling, SessionState.Running},

@@ -78,15 +78,15 @@ namespace Microsoft.Telepathy.SessionManager.Services
             return Task.FromResult(new Empty());
         }
 
-        public override Task<CreateBatchClientReply> CreateBatchClient(CreateBatchClientRequest request, ServerCallContext context)
+        public override async Task<CreateBatchClientReply> CreateBatchClient(CreateBatchClientRequest request, ServerCallContext context)
         {
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
             _activeSessions.TryGetValue(sessionId, out Session session);
             session?.AddBatchClient(clientId);
             int clientTimeout = session.SessionInitInfo.ClientIdleTimeout;
-            _nsqDelegation.RegisterBatchClient(sessionId,clientId, clientTimeout);
-            return Task.FromResult(new CreateBatchClientReply{ IsReady = true});
+            await _nsqDelegation.RegisterBatchClientAsync(sessionId, clientId, clientTimeout);
+            return new CreateBatchClientReply{ IsReady = true};
         }
 
         public override Task<Empty> CloseBatchClient(CloseBatchClientRequest request, ServerCallContext context)
@@ -94,6 +94,7 @@ namespace Microsoft.Telepathy.SessionManager.Services
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
             _activeSessions.TryGetValue(sessionId, out Session session);
+            session?.UpdateBatchClientState(clientId, BatchClientState.Closed);
             session?.RemoveBatchClient(clientId);
             return Task.FromResult(new Empty());
         }
@@ -103,8 +104,7 @@ namespace Microsoft.Telepathy.SessionManager.Services
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
             _activeSessions.TryGetValue(sessionId, out Session session);
-            BatchClient client = null;
-            session?.UpdateBatchClientState(clientId, BatchClientState.EndOfRequest);
+            session?.UpdateBatchClientState(clientId, BatchClientState.EndOfRequest, request.TotalRequestNumber);
             return Task.FromResult(new Empty());
         }
     }

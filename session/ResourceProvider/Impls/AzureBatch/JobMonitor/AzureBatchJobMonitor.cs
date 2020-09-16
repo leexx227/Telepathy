@@ -22,6 +22,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
     using TelepathyBatchClient = Telepathy.Session.BatchClient;
     using Microsoft.Telepathy.Common;
     using StackExchange.Redis;
+    using BatchClient = Session.BatchClient;
 
     internal class AzureBatchJobMonitor : IDisposable
     {
@@ -190,46 +191,32 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     {
                         shouldExit = true;
                     }
-                    else if (currentJobState == SessionState.Running && this.previousJobState == SessionState.Completed)
-                    {
-                        currentJobState = SessionState.Completed;
-                    }
-                    else if (currentJobState == SessionState.Running || currentJobState == SessionState.Finishing)
+                    if (!shouldExit)
                     {
                         //query all clients from Redis
                         var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
                         var allClientsState = _cache.HashValues(hashKey);
-                        bool allClientsTimeout = true;
-                        bool allClientsFinished = true;
+                        bool allClientsEnded = true;
                         foreach (var clientState in allClientsState)
                         {
                             BatchClientState currentBatchClientState = (BatchClientState)Enum.Parse(typeof(BatchClientState), clientState.ToString());
-                            if (!currentBatchClientState.Equals(BatchClientState.EndOfResponse))
+                            if (!BatchClient.IsEndState(currentBatchClientState))
                             {
-                                allClientsFinished = false;
-                            }
-                            else if (!currentBatchClientState.Equals(BatchClientState.Timeout))
-                            {
-                                allClientsTimeout = false;
+                                allClientsEnded = false;
                             }
 
-                            if (!allClientsTimeout && !allClientsFinished)
+                            if (!allClientsEnded)
                             {
+                                sessionIdleTimestamp = DateTime.MinValue;
                                 break;
                             }
                         }
-
-                    /*    if (allClientsTimeout && currentJobState == SessionState.Running)
-                        {
-                            Console.WriteLine($"[AzureBatchJobMonitor] All batch clients are timeout and session will be set Running.");
-                            currentJobState = SessionState.Failed;
-                            shouldExit = true;
-                        }
-                        else if (allClientsFinished && this.previousJobState == SessionState.Idle)
+                        //If session is idle timeout
+                        if (allClientsEnded && this.previousJobState == SessionState.Running)
                         {
                             //check if session is timeout to be idle state
                             DateTime currentTime = DateTime.Now;
-
+                            sessionIdleTimestamp = sessionIdleTimestamp == DateTime.MinValue ? DateTime.Now : sessionIdleTimestamp;
                             if (sessionIdleTimestamp != DateTime.MinValue && (currentTime - sessionIdleTimestamp) >= TimeSpan.FromMilliseconds(SessionTimeout))
                             {
                                 currentJobState = SessionState.Completed;
@@ -239,19 +226,14 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                             }
                             else
                             {
-                                currentJobState = SessionState.Idle;
+                                currentJobState = SessionState.Running;
                             }
                         }
-                        else if (allClientsFinished && currentJobState == SessionState.Running)
+                        else if (!allClientsEnded && currentJobState == SessionState.Closing)
                         {
-                            currentJobState = SessionState.Idle;
-                            sessionIdleTimestamp = DateTime.Now;
-                        }
-                        else if (!allClientsFinished && currentJobState == SessionState.Finishing)
-                        {
+                            //Session is closed by user, but exists requests have not been handled in cluster
                             currentJobState = SessionState.Canceling;
                         }
-                    */
                     }
 
                     stateChangedTaskList = await this.GetTaskStateChangeAsync(nodes);
@@ -329,6 +311,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         /// </remarks>
         private async Task<List<TaskInfo>> GetTaskStateChangeAsync(List<ComputeNode> nodes)
         {
+            //TODO:
+            //Should query task state from internal storage record other than ABS to meet session level task scheduling policy
             try
             {
                 //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Verbose, "[AzureBatchJobMonitor] Query task info...");

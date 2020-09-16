@@ -43,15 +43,21 @@ namespace Microsoft.Telepathy.Session
             _cache.HashDelete(hashKey, clientId);
         }
 
-        public bool UpdateBatchClientState(string clientId, BatchClientState state)
+        public bool UpdateBatchClientState(string clientId, BatchClientState state, int requestNum = 0)
         {
             //TODO: ErrorHandling, how the state machine work? Check previous state first.
             var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
             var storedState = (BatchClientState)Enum.Parse(typeof(BatchClientState),_cache.HashGet(hashKey, clientId).ToString());
             //Only previous state is not an end state, the update operation can execute
-            if (storedState == BatchClientState.Timeout || storedState == BatchClientState.Closed)
+            if (BatchClient.IsEndState(storedState))
             {
                 return false;
+            }
+
+            if (storedState == BatchClientState.EndOfRequest)
+            {
+                var tasksKey = SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(SessionId, clientId);
+                _cache.StringSet(tasksKey, requestNum.ToString());
             }
 
             HashEntry[] clientEntry = { new HashEntry(clientId, state.ToString()) };
@@ -74,8 +80,8 @@ namespace Microsoft.Telepathy.Session
                 case SessionState.Canceled:
                 case SessionState.Completed:
                 case SessionState.Failed:
-                case SessionState.Finishing:
-                case SessionState.Finished:
+                case SessionState.Closing:
+                case SessionState.Closed:
                     return false;
             }
 

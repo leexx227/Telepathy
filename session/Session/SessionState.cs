@@ -36,12 +36,12 @@ namespace Microsoft.Telepathy.Session
         /// <summary>
         /// The session is finishing
         /// </summary>
-        Finishing,
+        Closing,
 
         /// <summary>
         /// The session is finished and all the related resources have all been cleaned up
         /// </summary>
-        Finished,
+        Closed,
 
         /// <summary>
         /// The session is canceling due to client's cancellation

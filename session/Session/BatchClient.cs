@@ -9,6 +9,12 @@ namespace Microsoft.Telepathy.Session
         public string ClientId { get; }
         public BatchClientState State { set; get; }
 
+        public static bool IsEndState(BatchClientState state)
+        {
+            return state == BatchClientState.Timeout || state == BatchClientState.Closed ||
+                   state == BatchClientState.EndOfResponse;
+        }
+
         public BatchClient(string sessionId, string clientId)
         {
             this.SessionId = sessionId;

@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using System.Threading.Tasks;
+
 namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 {
     using System;
@@ -10,7 +12,8 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
     public class NsqManager
     {
-        private static TimeSpan RequestTimeout = new TimeSpan(0, 0, 0, 0, 5000);
+        private const int WaitTime = 3000;
+        private static readonly TimeSpan RequestTimeout = new TimeSpan(0, 0, 0, 0, 5000);
         private static Lazy<List<NsqLookupdHttpClient>> _lookupdHttpClients = new Lazy<List<NsqLookupdHttpClient>>(() => ConstructLookupdClients());
 
         private static List<string> GetLookupdAddress()
@@ -32,37 +35,59 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             return lookupdHttpClients;
         }
 
-        private static List<string> GetAllNsqdAddress(string topicName)
+        private static List<string> GetAllNsqdAddress(string topicName, int timeout)
         {
             Console.WriteLine($"[NsqManager] Start to get all Nsqd addresses for topic {topicName}.");
             List<string> nsqdAddress = new List<string>();
-            foreach (var lookupdHttpClient in LookupdHttpClients)
+            DateTime startClientTime = DateTime.Now;
+            while (true)
             {
-                try
+                DateTime queryClientTime = DateTime.Now;
+                if (queryClientTime - startClientTime >= TimeSpan.FromMilliseconds(timeout))
                 {
-                    NsqLookupdLookupResponse response = lookupdHttpClient.Lookup(topicName);
-                    
-                    TopicProducerInformation[] producers = response.Producers;
-                    foreach (var producer in producers)
+                    break;
+                }
+
+                foreach (var lookupdHttpClient in LookupdHttpClients)
+                {
+                    try
                     {
-                        string address = $"{producer.BroadcastAddress}/{producer.HttpPort}";
-                        nsqdAddress.Add(address);
+                        NsqLookupdLookupResponse response = lookupdHttpClient.Lookup(topicName);
+
+                        TopicProducerInformation[] producers = response.Producers;
+                        foreach (var producer in producers)
+                        {
+                            string address = $"{producer.BroadcastAddress}/{producer.HttpPort}";
+                            nsqdAddress.Add(address);
+                        }
+
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"[NsqManager] Exception occurs when look up {topicName} response: {e.Message}");
+                        Task.Delay(WaitTime);
                     }
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"[NsqManager] Exception occurs when look up {topicName} response: {e.Message}");
-                }              
             }
+
+          
             Console.WriteLine($"[NsqManager] Current nsqd client number is {nsqdAddress.Count}");
             return nsqdAddress;
         }
 
-        public static List<NsqdHttpClient> GetAllNsqdClients(string topicName)
+        public static List<NsqdHttpClient> GetAllNsqdClients(string topicName, int timeout)
         {
-            List<string> nsqdAddress = GetAllNsqdAddress(topicName);
-            Console.WriteLine($"[NsqManager] Start to get all Nsqd clients.");
+            List<string> nsqdAddress = GetAllNsqdAddress(topicName, timeout);
             List<NsqdHttpClient> nsqdHttpClients = new List<NsqdHttpClient>();
+            if (nsqdAddress.Count == 0)
+            {
+                Console.WriteLine($"[NsqManager] Fail to get nsqd addresses and the client is timeout to wait.");
+                return nsqdHttpClients;
+            }
+
+            Console.WriteLine($"[NsqManager] Start to get all Nsqd clients.");
+          
             foreach (var address in nsqdAddress)
             {
                 nsqdHttpClients.Add(new NsqdHttpClient(address, RequestTimeout));

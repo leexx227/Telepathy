@@ -43,9 +43,18 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
         {
             Trace.TraceWarning($"Ignored call to {nameof(this.RequeueOrFailJobAsync)}");
         }
-        public async Task FailJobAsync(string sessionId, string reason) => await this._sessionLauncher.TerminateAsync(sessionId);
 
-        public async Task FinishJobAsync(string sessionId, string reason) => await this._sessionLauncher.TerminateAsync(sessionId);
+        public async Task FailJobAsync(string sessionId, string reason)
+        {
+            Console.WriteLine($"[AzureBatchSchedulerDelegation] Invoke FailJobAsync because {reason}");
+            return await this._sessionLauncher.TerminateAsync(sessionId);
+        }
+
+        public async Task FinishJobAsync(string sessionId, string reason)
+        {
+            Console.WriteLine($"[AzureBatchSchedulerDelegation] Invoke FinishJobAsync because {reason}");
+            return await this._sessionLauncher.TerminateAsync(sessionId);
+        }
 
         /// <summary>
         /// Start to subscribe the job and task event
@@ -120,13 +129,13 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
             switch (exitSessionState)
             {
                 case JobState.Completed: 
-                    //await FinishJobAsync(sessionId, "Job finishes successfully.");
+                    await FinishJobAsync(sessionId, "Job finishes successfully.");
                     break;
                 case JobState.Canceled:
-                    //await FinishJobAsync(sessionId, "Job is cancelled.");
+                    await FinishJobAsync(sessionId, "Job is cancelled.");
                     break;
                 case JobState.Failed:
-                    //await FailJobAsync(sessionId, "Job is failed.");
+                    await FailJobAsync(sessionId, "Job is failed.");
                     break;
             }
             Debug.Assert(entry != null, "[AzureBatchSchedulerDelegation] Sender should be an instance of JobMonitorEntry class.");
