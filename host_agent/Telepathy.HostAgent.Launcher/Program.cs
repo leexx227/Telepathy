@@ -29,8 +29,9 @@ namespace Microsoft.Telepathy.HostAgent.Launcher
             Environment.SetEnvironmentVariable(HostAgentConstants.DispatcherIpEnvVar, "localhost");
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcLanguageEnvVar, "csharp");
             Environment.SetEnvironmentVariable(HostAgentConstants.SessionIdEnvVar, "agent-0");
-            Environment.SetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar, @".\");
-            Environment.SetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar, @"%TELEPATHY_WORKING_DIR%testsvc\csharp\EchoServer.dll");
+            Environment.SetEnvironmentVariable("TruePath",@".\");
+            Environment.SetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar, @"TruePath");
+            Environment.SetEnvironmentVariable(HostAgentConstants.SvcPathEnvVar, @"testsvc\csharp\EchoServer.dll");
 
             Environment.SetEnvironmentVariable(HostAgentConstants.SvcConcurrencyEnvVar, "1");
             Environment.SetEnvironmentVariable(HostAgentConstants.PrefetchCountEnvVar, "3");

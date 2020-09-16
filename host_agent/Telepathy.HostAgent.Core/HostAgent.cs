@@ -180,7 +180,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         {
                             Console.WriteLine($"Find task empty");
                             getEmptyQueueCount++;
-                            await Task.Delay(this.defaultRetryIntervalMs * getEmptyQueueCount);
+                            await Task.Delay(this.defaultRetryIntervalMs /** getEmptyQueueCount*/);
                         }
 
                         if (wrapperTask.SessionState == SessionStateEnum.EndTask)

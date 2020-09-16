@@ -23,17 +23,23 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private void SetProcessStartInfo()
         {
-            var svcFullPath = Environment.GetEnvironmentVariable(HostAgentConstants.SvcFullPathEnvVar);
-            Utility.ThrowIfNullOrEmpty(svcFullPath, HostAgentConstants.SvcFullPathEnvVar);
-            Utility.ThrowIfNullOrEmpty(Environment.GetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar), HostAgentConstants.TelepathyWorkingDirEnvVar);
-            svcFullPath = Environment.ExpandEnvironmentVariables(svcFullPath);
+            var svcPath = Environment.GetEnvironmentVariable(HostAgentConstants.SvcPathEnvVar);
+            Utility.ThrowIfNullOrEmpty(svcPath, HostAgentConstants.SvcPathEnvVar);
 
-            var pathList = svcFullPath.Contains(HostAgentConstants.WinFilePathSeparator)
-                ? svcFullPath.Split(HostAgentConstants.WinFilePathSeparator)
-                : svcFullPath.Split(HostAgentConstants.UnixFilePathSeparator);
+            var workingDirEnvVarName = Environment.GetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar);
+            Utility.ThrowIfNullOrEmpty(workingDirEnvVarName, HostAgentConstants.TelepathyWorkingDirEnvVar);
+
+            var svcRealPath = Environment.GetEnvironmentVariable(workingDirEnvVarName);
+            Utility.ThrowIfNullOrEmpty(svcRealPath, "service real working path");
+
+            var svcFullPath = Path.Combine(svcRealPath, svcPath);
+
+            var pathList = svcPath.Contains(HostAgentConstants.WinFilePathSeparator)
+                ? svcPath.Split(HostAgentConstants.WinFilePathSeparator)
+                : svcPath.Split(HostAgentConstants.UnixFilePathSeparator);
             this.program = pathList[pathList.Length-1];
 
-            var workingDir = string.Join(Utility.GetFileSeparator(), pathList[0..(pathList.Length - 1)]);
+            var workingDir = Path.Combine(svcRealPath, Path.Combine(pathList[0..(pathList.Length - 1)]));
             this.processInfo.WorkingDirectory = workingDir;
 
             var language = Environment.GetEnvironmentVariable(HostAgentConstants.SvcLanguageEnvVar);
@@ -112,8 +118,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
             if (this.program.EndsWith(".py"))
             {
-                var dependencyFilePath = this.processInfo.WorkingDirectory + Utility.GetFileSeparator() +
-                                         HostAgentConstants.PythonDependencyFile;
+                var dependencyFilePath = Path.Combine(this.processInfo.WorkingDirectory, HostAgentConstants.PythonDependencyFile);
                 if (File.Exists(dependencyFilePath))
                 {
                     var strCmdText = "install -r " + dependencyFilePath;
@@ -136,7 +141,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 }
                 else
                 {
-                    Console.WriteLine($"Fail to find python dependency file: {HostAgentConstants.PythonDependencyFile}. " +
+                    Console.WriteLine($"Fail to find python dependency file: {HostAgentConstants.PythonDependencyFile} in path: {dependencyFilePath}. " +
                                       $"Will not install any dependency package. This may cause the service failed if it relies on some external dependencies.");
                 }
 

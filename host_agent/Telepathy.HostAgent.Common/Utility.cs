@@ -43,7 +43,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
 
         public static void PrintProcessInfo(ProcessStartInfo processInfo)
         {
-            Console.WriteLine($"FileName: {processInfo.FileName}, Args: {processInfo.Arguments}");
+            Console.WriteLine($"FileName: {processInfo.FileName}, Args: {processInfo.Arguments}, Working dir: {processInfo.WorkingDirectory}");
             foreach (var key in processInfo.Environment.Keys)
             {
                 if (key.Contains("TELEPATHY"))

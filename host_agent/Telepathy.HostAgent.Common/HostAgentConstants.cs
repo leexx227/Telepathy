@@ -13,7 +13,7 @@ namespace Microsoft.Telepathy.HostAgent.Common
         public const string PrefetchCountEnvVar = "TELEPATHY_PREFETCH_COUNT";
         public const string SvcLanguageEnvVar = "TELEPATHY_SVC_LANGUAGE";
         public const string TelepathyWorkingDirEnvVar = "TELEPATHY_WORKING_DIR";
-        public const string SvcFullPathEnvVar = "TELEPATHY_SVC_FULL_PATH";
+        public const string SvcPathEnvVar = "TELEPATHY_SVC_FULL_PATH";
         public const string SessionIdEnvVar = "TELEPATHY_SESSION_ID";
         public const string SvcInitTimeoutEnvVar = "TELEPATHY_SVC_INIT_TIMEOUT";
 
