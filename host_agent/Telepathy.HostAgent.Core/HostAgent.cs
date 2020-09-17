@@ -241,7 +241,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     try
                     {
-                        var wrappedTask = this.taskCache.Take(token);
+                        var wrappedTask = await Task.Run(()=>this.taskCache.Take(token));
                         var result = await this.CallMethodWrapperAsync(wrappedTask);
                         await this.SendResultAsync(result);
                     }
