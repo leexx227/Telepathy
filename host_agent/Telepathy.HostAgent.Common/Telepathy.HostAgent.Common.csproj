@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>Microsoft.Telepathy.HostAgent.Common</AssemblyName>
+    <RootNamespace>Microsoft.Telepathy.HostAgent.Common</RootNamespace>
+  </PropertyGroup>
+
+	<ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.12.4" />
+    <PackageReference Include="Grpc" Version="2.30.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.30.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\protos\dispatcher.proto">
+      <Link>dispatcher.proto</Link>
+    </Protobuf>
+    <Protobuf Include="..\..\protos\echo.proto">
+      <Link>echo.proto</Link>
+    </Protobuf>
+    <Protobuf Include="..\..\protos\session.proto">
+      <Link>session.proto</Link>
+    </Protobuf>
+    <Protobuf Include="..\..\protos\telepathy.proto">
+      <Link>telepathy.proto</Link>
+    </Protobuf>
+  </ItemGroup>
+
+</Project>
