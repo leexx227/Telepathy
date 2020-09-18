@@ -127,7 +127,7 @@ Now we can write the client code:
 
 1. Add file `echo.proto` to the project and set its build action as **Protobuf compiler**.
 
-1. Prepare the session info, which includes the frontend address (telepathy system entrance) and the service name. Let’s assume the head node host name is head.contoso.com and we are using the Echo service.
+1. Prepare the session info, which includes the frontend address (telepathy system entrance) and the service name. Let’s assume the frontend address is head.contoso.com:9100 and we are using the Echo service.
 
     ```csharp
     SessionStartInfo info = new SessionStartInfo("head.contoso.com:9100", "Echo");
