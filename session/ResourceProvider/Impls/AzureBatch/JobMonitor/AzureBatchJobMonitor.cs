@@ -171,27 +171,16 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     this.cloudJob = await this.batchClient.JobOperations.GetJobAsync(this.cloudJob.Id);
                     state = this.cloudJob.State.HasValue ? this.cloudJob.State.Value : state;
                     currentJobState = await AzureBatchJobStateConverter.FromAzureBatchJobAsync(this.cloudJob);
-                    Console.WriteLine($"Current job state from AzureBatchJobStateConverter is {currentJobState}");
-                    if (state == JobState.Completed || state == JobState.Disabled)
-                    {
-                        if (this.previousJobState == SessionState.Canceling)
-                        {
-                            currentJobState = SessionState.Canceled;
-                        }
-                        shouldExit = true;
-                    }
-                    else if (this.previousJobState == SessionState.Canceling && !shouldExit)
-                    {
-                        //Override current job state as Canceling, because when all tasks turn to be completed, the job state converter will make job state finishing.
-                        //If one job is cancelling in previous state and now is not in one terminated state, keep to reporting cancelling state to job monitor entry.
-                        currentJobState = SessionState.Canceling;
-                        //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitor] Overwrite current job state as {0} in Telepathy according to previous job state {1}\n", currentJobState, previousJobState);
-                    }
-                    else if (currentJobState == SessionState.Failed)
+                    Console.WriteLine($"[AzureBatchJobMonitor] Current job state from AzureBatchJobStateConverter is {currentJobState}");
+                    if (currentJobState == SessionState.Failed || currentJobState == SessionState.Closed)
                     {
                         shouldExit = true;
                     }
-                    if (!shouldExit)
+                    if(this.previousJobState == SessionState.Completed && currentJobState == SessionState.Running)
+                    {
+                        currentJobState = SessionState.Completed;
+                    }
+                    else if (!shouldExit)
                     {
                         //query all clients from Redis
                         var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
@@ -229,34 +218,19 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                                 currentJobState = SessionState.Running;
                             }
                         }
-                        else if (!allClientsEnded && currentJobState == SessionState.Closing)
-                        {
-                            //Session is closed by user, but exists requests have not been handled in cluster
-                            currentJobState = SessionState.Canceling;
-                        }
                     }
 
                     stateChangedTaskList = await this.GetTaskStateChangeAsync(nodes);
                 }
                 catch (BatchException e)
                 {
-                    //If the previous job state is canceling and current job is not found, then the job is deleted.
+                    //If current job is not found, then the job is deleted.
                     if (e.RequestInformation != null & e.RequestInformation.HttpStatusCode != null)
                     {
                         if (e.RequestInformation.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
                         {
-                            if (previousJobState == SessionState.Canceling)
-                            {
-                                //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Warning, "[AzureBatchJobMonitor] The queried job has been deleted.");
-                                Console.WriteLine("The queried job has been deleted.");
-                            }
-                            else
-                            {
-                                //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Warning, "[AzureBatchJobMonitor] The queried job previous state is {0}, we make its state as canceled because it's no longer exist.", previousJobState);
-                                Console.WriteLine($"The queried job previous state is {previousJobState}, we make its state canceled because it's no longer exist.");
-                            }
                             shouldExit = true;
-                            currentJobState = SessionState.Canceled;
+                            currentJobState = SessionState.Closed;
                         }
                     }
                 }

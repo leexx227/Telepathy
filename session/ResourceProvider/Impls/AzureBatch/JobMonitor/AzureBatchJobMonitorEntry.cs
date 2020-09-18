@@ -190,6 +190,13 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
             if (shouldExit)
             {
                 //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitorEntry] Exit AzureBatchJobMonitor Entry");
+                //Remove session info from Redis
+                
+                var sessionStateKey = SessionConfigurationManager.GetRedisSessionStateKey(SessionId);
+                _cache.KeyDelete(sessionStateKey);
+                var sessionBatchIdsKey = SessionConfigurationManager.GetRedisBatchClientIdKey(SessionId);
+                _cache.KeyDelete(sessionBatchIdsKey);
+
                 this.Exit?.Invoke(this, EventArgs.Empty);
             }
         }

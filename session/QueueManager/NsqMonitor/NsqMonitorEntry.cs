@@ -47,7 +47,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             _batchQueueMonitor = new NsqMonitor(SessionId, BatchId, _clientTimeout, this.BatchQueueMonitor_OnReportQueueState);
             try
             {
-                await Task.Run(() => this.StartMonitorAsync());
+                Task.Run(() => this.StartMonitorAsync());
             }
             catch (Exception e)
             {
@@ -106,6 +106,13 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             if (shouldExit)
             {
                 //TraceHelper.TraceEvent(this.sessionid, TraceEventType.Information, "[AzureBatchJobMonitorEntry] Exit AzureBatchJobMonitor Entry");
+                //clean up all queues info in Redis
+                var batchClientKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
+                _cache.KeyDelete(batchClientKey);
+                var batchClientTotalTasksKey = SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(SessionId, BatchId);
+                _cache.KeyDelete(batchClientTotalTasksKey);
+                var batchClientsFinishTasksKey = SessionConfigurationManager.GetRedisBatchClientFinishTasksKey(SessionId, BatchId);
+                _cache.KeyDelete(batchClientsFinishTasksKey);
                 this.Exit?.Invoke(this, EventArgs.Empty);
             }
         }

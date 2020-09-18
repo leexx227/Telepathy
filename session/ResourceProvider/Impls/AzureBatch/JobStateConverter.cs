@@ -60,7 +60,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
                     break;
                 }
                 
-                if (task.ExecutionInformation.ExitCode == 0)
+                if (task.ExecutionInformation.FailureInformation.Code == "TaskEnded")
                 {
                     failedJob = false;
                     break;
@@ -72,7 +72,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
         private static readonly Dictionary<JobState, SessionState> JobStateMapping = new Dictionary<JobState, SessionState>
         {
             { JobState.Completed, SessionState.Closed},
-            { JobState.Deleting, SessionState.Canceling},
+            { JobState.Deleting, SessionState.Closing},
             { JobState.Disabled, SessionState.Queued},
             { JobState.Disabling, SessionState.Running},
             { JobState.Enabling, SessionState.Creating}

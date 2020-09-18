@@ -8,6 +8,7 @@ namespace Microsoft.Telepathy.Session
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
 
     public class Session
     {
@@ -54,10 +55,11 @@ namespace Microsoft.Telepathy.Session
                 return false;
             }
 
-            if (storedState == BatchClientState.EndOfRequest)
+            if (state == BatchClientState.EndOfRequest)
             {
                 var tasksKey = SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(SessionId, clientId);
                 _cache.StringSet(tasksKey, requestNum.ToString());
+                Console.WriteLine($"[Session] UpdateBatchClientState to EndOfRequest, total request number is {requestNum}");
             }
 
             HashEntry[] clientEntry = { new HashEntry(clientId, state.ToString()) };
@@ -76,8 +78,6 @@ namespace Microsoft.Telepathy.Session
             var storedState = (SessionState) Enum.Parse(typeof(SessionState), _cache.StringGet(sessionStateKey).ToString());
             switch (storedState)
             {
-                case SessionState.Canceling:
-                case SessionState.Canceled:
                 case SessionState.Completed:
                 case SessionState.Failed:
                 case SessionState.Closing:
@@ -86,6 +86,20 @@ namespace Microsoft.Telepathy.Session
             }
 
             _cache.StringSet(sessionStateKey, state.ToString());
+            return true;
+        }
+
+        public bool CloseAllBatchClients(string sessionId)
+        {
+            //Set all BatchClient state as closed in redis
+            var hashkey = SessionConfigurationManager.GetRedisBatchClientStateKey(sessionId);
+            var batchClients = _cache.HashGetAll(hashkey);
+            List<HashEntry> clients = new List<HashEntry>();
+            foreach (var batchClient in batchClients)
+            {
+                clients.Add(new HashEntry(batchClient.Name, BatchClientState.Closed.ToString()));
+            }
+            _cache.HashSet(hashkey, clients.ToArray());
             return true;
         }
     }

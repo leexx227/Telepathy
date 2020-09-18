@@ -18,7 +18,7 @@ namespace Microsoft.Telepathy.Session
 
         public int SessionIdleTimeout { get; }
 
-        public int ClientIdleTimeout { get; }
+        public int ClientIdleTimeout { get;}
 
         public string SessionCreator { get; }
 
@@ -28,8 +28,10 @@ namespace Microsoft.Telepathy.Session
 
         public Dictionary<string, string> Environments;
 
+        private int defaultIdleTimeout = 3600000;
+
         public SessionInitInfo(string serviceName, Version serviceVersion, bool durable,
-            int maxServiceInstance, int sessionIdleTimeout, int clientIdleTimeout, string sessionCreator)
+            int maxServiceInstance, string sessionCreator, int sessionIdleTimeout = 3600000, int clientIdleTimeout = 3600000)
         {
             ServiceName = serviceName;
             ServiceVersion = serviceVersion;
@@ -41,7 +43,7 @@ namespace Microsoft.Telepathy.Session
         }
 
         public SessionInitInfo(string serviceName, Version serviceVersion, bool durable,
-            int maxServiceInstance, int sessionIdleTimeout, int clientIdleTimeout, string sessionCreator, int serviceTimeout)
+            int maxServiceInstance, string sessionCreator, int serviceTimeout, int sessionIdleTimeout = 3600000, int clientIdleTimeout = 3600000)
         {
             ServiceName = serviceName;
             ServiceVersion = serviceVersion;

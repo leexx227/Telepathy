@@ -47,13 +47,13 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
         public async Task FailJobAsync(string sessionId, string reason)
         {
             Console.WriteLine($"[AzureBatchSchedulerDelegation] Invoke FailJobAsync because {reason}");
-            return await this._sessionLauncher.TerminateAsync(sessionId);
+            await this._sessionLauncher.TerminateAsync(sessionId);
         }
 
         public async Task FinishJobAsync(string sessionId, string reason)
         {
             Console.WriteLine($"[AzureBatchSchedulerDelegation] Invoke FinishJobAsync because {reason}");
-            return await this._sessionLauncher.TerminateAsync(sessionId);
+            await this._sessionLauncher.TerminateAsync(sessionId);
         }
 
         /// <summary>
@@ -128,11 +128,8 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch.SchedulerDelegat
             Console.WriteLine($"[AzureBatchSchedulerDelegation] {sessionId} : JobMonitorEntry_Exit, Exit session state is {exitSessionState}");
             switch (exitSessionState)
             {
-                case JobState.Completed: 
-                    await FinishJobAsync(sessionId, "Job finishes successfully.");
-                    break;
-                case JobState.Canceled:
-                    await FinishJobAsync(sessionId, "Job is cancelled.");
+                case JobState.Closed: 
+                    await FinishJobAsync(sessionId, "Job closed successfully.");
                     break;
                 case JobState.Failed:
                     await FailJobAsync(sessionId, "Job is failed.");

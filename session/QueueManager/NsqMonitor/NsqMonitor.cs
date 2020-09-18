@@ -51,7 +51,6 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
             this._clientTimeout = clientTimeout;
             this.ReportBatchClientStateAction = reportBatchClientStateAction;
             this._batchQueueId = SessionConfigurationManager.GetBatchClientQueueId(sessionId, batchId);
-            this._nsqdHttpClients = NsqManager.GetAllNsqdClients(_batchQueueId, _clientTimeout);
             _cache = RedisDB.Connection.GetDatabase();
         }
 
@@ -59,6 +58,8 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
         {
             try
             {
+                Console.WriteLine($"[NsqMonitor] Start to get batch queue {_batchQueueId} nsqd clients.");
+                this._nsqdHttpClients = NsqManager.GetAllNsqdClients(_batchQueueId, _clientTimeout);
                 if (_nsqdHttpClients.Count == 0)
                 {
                     var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(_sessionId);
@@ -97,6 +98,8 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                     if (BatchClient.IsEndState(Enum.Parse<BatchClientState>(storedClientState)))
                     {
                         shouldExit = true;
+                        //clean up queues
+                        NsqManager.CleanUpQueues(_nsqdHttpClients, _batchQueueId);
                         ReportBatchClientStateAction(_batchId, (BatchClientState)Enum.Parse(typeof(BatchClientState), storedClientState), shouldExit);
                         break;
                     }
@@ -107,6 +110,8 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                         var finishTasksKey =
                             SessionConfigurationManager.GetRedisBatchClientFinishTasksKey(_sessionId, _batchId);
                         var finishTasksNum = _cache.SetLength(finishTasksKey);
+                        Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Total task requests number is {_totalTaskNumber}");
+                        Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Current finished requests number is {finishTasksNum} .");
                         if (_totalTaskNumber == finishTasksNum)
                         {
                             currentClientState = BatchClientState.EndOfResponse;
@@ -118,13 +123,15 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                     }
                     else if (string.Equals(storedClientState, BatchClientState.Active.ToString()))
                     {
-                        int currentTaskNumber = NsqManager.GetRequestNumber(this._nsqdHttpClients, this._batchQueueId);
-                        Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Current queue requests number is {currentTaskNumber}");
-                        if (currentTaskNumber - _historyTaskNumber > 0)
+                        //int currentTaskNumber = NsqManager.GetRequestNumber(this._nsqdHttpClients, this._batchQueueId);
+                        int historyTaskNumber = NsqManager.GetHistoryRequestNumber(this._nsqdHttpClients, this._batchQueueId);
+                        //Console.WriteLine($"[NsqMonitor] {_batchQueueId} => Current queue requests number is {currentTaskNumber}");
+                        Console.WriteLine($"[NsqMonitor] {_batchQueueId} => History queue requests number is {historyTaskNumber}");
+                        if (historyTaskNumber - _historyTaskNumber > 0)
                         {
                             lastChangeTime = DateTime.Now;
                             currentClientState = BatchClientState.Active;
-                            _historyTaskNumber = currentTaskNumber;
+                            _historyTaskNumber = historyTaskNumber;
                             ReportBatchClientStateAction(_batchId, currentClientState, shouldExit);
                         }
                         else

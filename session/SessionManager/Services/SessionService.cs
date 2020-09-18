@@ -36,7 +36,9 @@ namespace Microsoft.Telepathy.SessionManager.Services
 
         public SessionService(ILogger<SessionService> logger)
         {
-            AzureBatchSessionConfiguration sessionConfiguration = SessionConfigurationManager.ConfigureAzureBatchSessionFromJsonFile(@"C:\Users\jingjli\Desktop\AzureBatch.json");
+            
+            var sessionConfigFilePath = Environment.GetEnvironmentVariable(SessionConstants.SessionConfigPathEnvVar, EnvironmentVariableTarget.Machine);
+            AzureBatchSessionConfiguration sessionConfiguration = SessionConfigurationManager.ConfigureAzureBatchSessionFromJsonFile(sessionConfigFilePath);
             ResourceProviderRuntimeConfiguration.SessionLauncherStorageConnectionString = sessionConfiguration.SoaStorageConnectionString;
             AzureBatchConfiguration.InitializeAzureBatchConfiguration(sessionConfiguration);
             _logger = logger;
@@ -51,7 +53,7 @@ namespace Microsoft.Telepathy.SessionManager.Services
             _logger.LogInformation("Start to create session...");
             
             Version serviceVersion = string.IsNullOrEmpty(createSessionRequest.SessionInitInfo.ServiceVersion) ? null : Version.Parse(createSessionRequest.SessionInitInfo.ServiceVersion);
-            SessionInitInfo info = new SessionInitInfo(createSessionRequest.SessionInitInfo.ServiceName, serviceVersion, createSessionRequest.SessionInitInfo.Durable, createSessionRequest.SessionInitInfo.MaxServiceInstance, createSessionRequest.SessionInitInfo.SessionIdleTimeout, createSessionRequest.SessionInitInfo.ClientIdleTimeout, createSessionRequest.SessionInitInfo.SessionCreator);
+            SessionInitInfo info = new SessionInitInfo(createSessionRequest.SessionInitInfo.ServiceName, serviceVersion, createSessionRequest.SessionInitInfo.Durable, createSessionRequest.SessionInitInfo.MaxServiceInstance, createSessionRequest.SessionInitInfo.SessionCreator);
             Session session = new Session(info);
             //create a session job and ask for resource from resource provider
             ResourceAllocateInfo resourceAllocateInfo = await _resourceProvider.AllocateSessionResourceAsync(session);
@@ -75,6 +77,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
             _resourceProvider.TerminateAsync(sessionId);
             //TODO: Clean up session client queues
             _activeSessions.TryRemove(sessionId, out Session session);
+            //Do cleanup work, set all batchclient state as closed
+            session?.CloseAllBatchClients(sessionId);
             return Task.FromResult(new Empty());
         }
 
@@ -104,7 +108,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
             _activeSessions.TryGetValue(sessionId, out Session session);
-            session?.UpdateBatchClientState(clientId, BatchClientState.EndOfRequest, request.TotalRequestNumber);
+            Console.WriteLine($"total request numer is {request.TotalRequestNumber}");
+            session?.UpdateBatchClientState(clientId, BatchClientState.EndOfRequest, requestNum: request.TotalRequestNumber);
             return Task.FromResult(new Empty());
         }
     }

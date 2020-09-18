@@ -7,18 +7,20 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Text;
+    using Microsoft.Telepathy.Session;
     using NsqSharp.Api;
 
     public class NsqManager
     {
-        private const int WaitTime = 3000;
+        private const int WaitTime = 5000;
         private static readonly TimeSpan RequestTimeout = new TimeSpan(0, 0, 0, 0, 5000);
         private static Lazy<List<NsqLookupdHttpClient>> _lookupdHttpClients = new Lazy<List<NsqLookupdHttpClient>>(() => ConstructLookupdClients());
 
         private static List<string> GetLookupdAddress()
         {
-            return new List<string> { "172.16.0.10:4161" };
+            return Environment.GetEnvironmentVariable(SessionConstants.QueueAddressesEnvVar, EnvironmentVariableTarget.Machine).Split(";").ToList();
         }
 
         private static List<NsqLookupdHttpClient> LookupdHttpClients { get => _lookupdHttpClients.Value; }
@@ -47,7 +49,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                 {
                     break;
                 }
-
+                bool shouldExit = false;
                 foreach (var lookupdHttpClient in LookupdHttpClients)
                 {
                     try
@@ -57,10 +59,11 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                         TopicProducerInformation[] producers = response.Producers;
                         foreach (var producer in producers)
                         {
-                            string address = $"{producer.BroadcastAddress}/{producer.HttpPort}";
+                            string hostname = producer.Hostname;
+                            string address = $"{hostname}:{producer.HttpPort}";
                             nsqdAddress.Add(address);
                         }
-
+                        shouldExit = true;
                         break;
                     }
                     catch (Exception e)
@@ -68,6 +71,10 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                         Console.WriteLine($"[NsqManager] Exception occurs when look up {topicName} response: {e.Message}");
                         Task.Delay(WaitTime);
                     }
+                }
+                if (shouldExit)
+                {
+                    break;
                 }
             }
 
@@ -109,13 +116,41 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
                     continue;
                 queueDepth += targetTopic.Depth;
             }
-            Console.WriteLine($"[NsqManager] Current requests number for {topicName} is {queueDepth}.");
             return queueDepth;
+        }
+
+        private static int GetAllQueuesMessageCount(List<NsqdHttpClient> clients, string topicName)
+        {
+            Console.WriteLine($"[NsqManager] Start to get requests number for {topicName}.");
+            int messageCount = 0;
+            foreach (var client in clients)
+            {
+                NsqdStats stats = client.GetStats();
+                NsqdStatsTopic[] topics = stats.Topics;
+                NsqdStatsTopic targetTopic = Array.Find(topics, (topic) => topic.TopicName == topicName);
+                if (targetTopic == null)
+                    continue;
+                messageCount += targetTopic.MessageCount;
+            }
+            return messageCount;
         }
 
         public static int GetRequestNumber(List<NsqdHttpClient> allNsqdHttpClients, string batchQueueId)
         {
             return GetAllQueuesDepth(allNsqdHttpClients, batchQueueId);
+        }
+
+        public static int GetHistoryRequestNumber(List<NsqdHttpClient> allNsqdHttpClients, string batchQueueId)
+        {
+            return GetAllQueuesMessageCount(allNsqdHttpClients, batchQueueId);
+        }
+
+        public static void CleanUpQueues(List<NsqdHttpClient> allNsqdHttpClients, string batchQueueId)
+        {
+            foreach (var client in allNsqdHttpClients)
+            {
+                client.DeleteTopic(batchQueueId);
+            }
         }
     }
 }

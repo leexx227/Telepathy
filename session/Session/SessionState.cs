@@ -41,16 +41,6 @@ namespace Microsoft.Telepathy.Session
         /// <summary>
         /// The session is finished and all the related resources have all been cleaned up
         /// </summary>
-        Closed,
-
-        /// <summary>
-        /// The session is canceling due to client's cancellation
-        /// </summary>
-        Canceling,
-
-        /// <summary>
-        /// The session is canceled and all the related resources have all been cleaned up
-        /// </summary>
-        Canceled
+        Closed
     }
 }

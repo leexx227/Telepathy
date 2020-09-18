@@ -34,7 +34,7 @@ namespace Microsoft.Telepathy.Common
         public static string GetRedisBatchClientFinishTasksKey(string sessionId, string batchId)
         {
             //string
-            return $"{{{sessionId}}}:{batchId}:finishTasks";
+            return $"{{{sessionId}}}:{batchId}:finTasks";
         }
 
         public static string GetRedisBatchClientIdKey(string sessionId)

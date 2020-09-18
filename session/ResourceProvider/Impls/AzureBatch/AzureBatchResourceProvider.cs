@@ -48,7 +48,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private readonly string taskInLinuxCmd = $@"/bin/bash -c 'dotnet ${AzureBatchPrepJobWorkingDir}/{RuntimeFolder}/{RuntimeName}'";
 
-        private const string DispatcherIP = "172.16.0.10";
+        private string DispatcherIP = Environment.GetEnvironmentVariable(SessionConstants.DispatcherIPEnvVar, EnvironmentVariableTarget.Machine);
 
 
         // TODO: remove parameter less ctor and add specific parameters for the sake of test-ablity
@@ -96,26 +96,6 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
             }
         }
-
-        public string GetLocalIPv4(NetworkInterfaceType _type)
-        {
-            string output = "";
-            foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (item.NetworkInterfaceType == _type && item.OperationalStatus == OperationalStatus.Up)
-                {
-                    foreach (UnicastIPAddressInformation ip in item.GetIPProperties().UnicastAddresses)
-                    {
-                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            output = ip.Address.ToString();
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
 
         protected override async Task<ResourceAllocateInfo> CreateAndSubmitSessionJob(
             SessionInitInfo initInfo,

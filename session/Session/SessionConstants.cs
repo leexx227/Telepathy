@@ -45,5 +45,9 @@ namespace Microsoft.Telepathy.Session
         public static string SessionIDEnvVar => "TELEPATHY_SESSION_ID";
 
         public static string RegistrationStoreToken => "TELEPATHY_REGISTRATION_STORE";
+
+        public static string QueueAddressesEnvVar => "TELEPATHY_QUEUE_ADDRESSES";
+
+        public static string SessionConfigPathEnvVar => "TELEPATHY_SESSION_CONFIG_PATH";
     }
 }
