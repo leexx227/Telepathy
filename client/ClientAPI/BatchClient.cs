@@ -177,11 +177,14 @@ namespace Microsoft.Telepathy.ClientAPI
                 await Task.Delay(100);
             }
 
+            var tasks = new List<Task>();
             foreach (var call in RequestCallQueue)
             {
-                await call.RequestStream.CompleteAsync();
-                await call.ResponseAsync;
+                tasks.Add(call.RequestStream.CompleteAsync());
+                tasks.Add(call.ResponseAsync);
             }
+
+            await Task.WhenAll(tasks);
 
             await clients[GetNextClient()].Value.EndTasksAsync(new ClientEndOfTaskRequest{BatchClientInfo = batchInfo, TotalRequestNumber = requestCount});
         }

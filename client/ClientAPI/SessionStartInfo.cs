@@ -26,7 +26,7 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public int ClientIdleTimeout { get; set; } = 60000;
 
-        public int MaxServiceNum { get; set; }
+        public int MaxServiceNum { get; set; } = 1;
 
         public string TelepathyAddress => telepathyAddress;
 
