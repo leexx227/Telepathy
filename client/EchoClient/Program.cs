@@ -10,6 +10,8 @@ namespace Microsoft.Telepathy.EchoClient
     {
         static async Task Main(string[] args)
         {
+            AppContext.SetSwitch(
+                "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             CmdParser parser = new CmdParser(args);
             Config config = new Config(parser);
 

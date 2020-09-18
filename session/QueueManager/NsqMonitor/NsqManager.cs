@@ -20,7 +20,7 @@ namespace Microsoft.Telepathy.QueueManager.NsqMonitor
 
         private static List<string> GetLookupdAddress()
         {
-            return Environment.GetEnvironmentVariable(SessionConstants.QueueAddressesEnvVar, EnvironmentVariableTarget.Machine).Split(";").ToList();
+            return Environment.GetEnvironmentVariable(SessionConstants.QueueAddressesEnvVar).Split(";").ToList();
         }
 
         private static List<NsqLookupdHttpClient> LookupdHttpClients { get => _lookupdHttpClients.Value; }

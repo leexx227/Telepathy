@@ -54,7 +54,6 @@ namespace Microsoft.Telepathy.Session.ServiceRegistration
             var blob = this.GetServiceRegistrationBlockBlobReference(serviceName, serviceVersion);
             var filePath = SoaRegistrationAuxModule.GetServiceRegistrationTempFilePath(Path.GetFileNameWithoutExtension(blob.Uri.ToString()));
             Trace.TraceInformation($"Will write Service Registration file to {filePath}");
-
             // check if the exsiting file's md5 and cloud blob's md5 have the same value 
             if (File.Exists(filePath))
             {

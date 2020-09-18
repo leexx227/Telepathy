@@ -37,7 +37,7 @@ namespace Microsoft.Telepathy.SessionManager.Services
         public SessionService(ILogger<SessionService> logger)
         {
             
-            var sessionConfigFilePath = Environment.GetEnvironmentVariable(SessionConstants.SessionConfigPathEnvVar, EnvironmentVariableTarget.Machine);
+            var sessionConfigFilePath = Environment.GetEnvironmentVariable(SessionConstants.SessionConfigPathEnvVar);
             AzureBatchSessionConfiguration sessionConfiguration = SessionConfigurationManager.ConfigureAzureBatchSessionFromJsonFile(sessionConfigFilePath);
             ResourceProviderRuntimeConfiguration.SessionLauncherStorageConnectionString = sessionConfiguration.SoaStorageConnectionString;
             AzureBatchConfiguration.InitializeAzureBatchConfiguration(sessionConfiguration);
