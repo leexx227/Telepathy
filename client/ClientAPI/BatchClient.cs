@@ -172,14 +172,11 @@ namespace Microsoft.Telepathy.ClientAPI
 
         public async Task EndTasksAsync()
         {
-            Console.WriteLine("Begin end of request");
             while (requestCache.Count > 0 || RequestCallQueue.Count < totalCall)
             {
-                Console.WriteLine(requestCache.Count + " " + RequestCallQueue.Count);
                 await Task.Delay(100);
             }
 
-            Console.WriteLine("request cache is zero");
             foreach (var call in RequestCallQueue)
             {
                 await call.RequestStream.CompleteAsync();

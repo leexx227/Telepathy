@@ -34,19 +34,26 @@ namespace Microsoft.Telepathy.EchoClient
             info.MaxServiceNum = config.MaxServiceNum;
             Session session = null;
 
+            Console.WriteLine("[{0}] Start creating session", DateTime.UtcNow);
+
             try
             {
                 using (session = await Session.CreateSessionAsync(info))
                 {
+                    Console.WriteLine("[{0}] Session created, id = {1}", DateTime.UtcNow, session.Id);
+
                     using (var client = new BatchClient(Guid.NewGuid().ToString(), session, Echo.Descriptor.FindMethodByName("Echo")))
                     {
+                        Console.WriteLine("[{0}] Start sending {1} tasks", DateTime.UtcNow, config.NumberOfRequest);
                         for (int i = 0; i < config.NumberOfRequest; i++)
                         {
                             client.SendTask(new EchoRequest(i.ToString(), config.MessageSizeByte, config.CallDurationMS));
                         }
 
+                        Console.WriteLine("[{0}] End {1} tasks", DateTime.UtcNow, config.NumberOfRequest);
                         await client.EndTasksAsync();
 
+                        Console.WriteLine("[{0}] Start retrieve results", DateTime.UtcNow);
                         await foreach (var result in client.GetResultsAsync<EchoReply>())
                         {
                             Console.WriteLine("[{0}] {1}", DateTime.UtcNow, result.Message);
@@ -63,6 +70,7 @@ namespace Microsoft.Telepathy.EchoClient
             {
                 if (session != null)
                 {
+                    Console.WriteLine("[{0}] Closing session {1}.", DateTime.UtcNow, session.Id);
                     await session.CloseAsync();
                     session.Dispose();
                 }
