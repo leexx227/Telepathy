@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>Microsoft.Telepathy.EchoServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.30.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Protos\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\protos\echo.proto">
+      <Link>Protos\echo.proto</Link>
+    </Protobuf>
+  </ItemGroup>
+
+</Project>
