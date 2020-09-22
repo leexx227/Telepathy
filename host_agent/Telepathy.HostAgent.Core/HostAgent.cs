@@ -164,7 +164,9 @@ namespace Microsoft.Telepathy.HostAgent.Core
             var getEmptyTaskCount = 0;
             var currentRetryCount = 0;
             var token = this.HostAgentCancellationToken;
-
+            var sw = new Stopwatch();
+            sw.Start();
+            var count = 0;
             while (!this.isTaskEnd && !token.IsCancellationRequested)
             {
                 try
@@ -193,6 +195,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         getEmptyTaskCount = 0;
                         currentRetryCount = 0;
                     }
+                    count++;
+                    if(sw.ElapsedMilliseconds > 30 * 1000) {
+                        sw.Stop();
+                        Console.WriteLine("[Performance][GetTaskAsync] QPS {0}", count * 1000.0 / sw.ElapsedMilliseconds);
+                        count = 0;
+                        sw.Reset();
+                        sw.Start();
+                    }
+
                 }
                 catch (OperationCanceledException e)
                 {
@@ -234,6 +245,10 @@ namespace Microsoft.Telepathy.HostAgent.Core
         /// <returns></returns>
         private async Task SendTaskToSvcAsync()
         {
+            var sw = new Stopwatch();
+            sw.Start();
+            var count = 0;
+
             var token = this.HostAgentCancellationToken;
             while (!token.IsCancellationRequested)
             {
@@ -244,6 +259,14 @@ namespace Microsoft.Telepathy.HostAgent.Core
                         var wrappedTask = await Task.Run(()=>this.taskCache.Take(token));
                         var result = await this.CallMethodWrapperAsync(wrappedTask);
                         await this.SendResultAsync(result);
+                        count++;
+                        if(sw.ElapsedMilliseconds > 30 * 1000) {
+                            sw.Stop();
+                            Console.WriteLine("[Performance][SendTaskToSvcAsync] QPS {0}", count * 1000.0 / sw.ElapsedMilliseconds);
+                            count = 0;
+                            sw.Reset();
+                            sw.Start();
+                        }
                     }
                     catch (OperationCanceledException e)
                     {
