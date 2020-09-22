@@ -19,6 +19,11 @@ namespace Microsoft.Telepathy.Common
             return $"{sessionId}.{batchId}";
         }
 
+        public static string GetRedisSessionInitInfoKey(string sessionId)
+        {
+            return $"{{{sessionId}}}:initInfo";
+        }
+
         public static string GetRedisBatchClientStateKey(string sessionId)
         {
             //hashset

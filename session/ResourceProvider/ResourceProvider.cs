@@ -11,10 +11,9 @@ namespace Microsoft.Telepathy.ResourceProvider
     public abstract class ResourceProvider
     {
         protected ClusterInfo clusterInfo;
-        public async Task<ResourceAllocateInfo> AllocateSessionResourceAsync(Session session)
+        public async Task<ResourceAllocateInfo> AllocateSessionResourceAsync(SessionInitInfo sessionInitInfo)
         {
             ResourceAllocateInfo resourceAllocateInfo = new ResourceAllocateInfo();
-            SessionInitInfo sessionInitInfo = session.SessionInitInfo;
             resourceAllocateInfo.SessionInitInfo = sessionInitInfo;
             string callId = Guid.NewGuid().ToString();
             //TODO:

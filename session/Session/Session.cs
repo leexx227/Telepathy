@@ -12,43 +12,54 @@ namespace Microsoft.Telepathy.Session
 
     public class Session
     {
-        public string SessionId { set; get; }
         public SessionState State { get; }
         public SessionInitInfo SessionInitInfo { get; }
 
-        private readonly IDatabase _cache;
+        private static readonly IDatabase Cache = RedisDB.Connection.GetDatabase();
 
         public Session(SessionInitInfo sessionInitInfo)
         {
             SessionInitInfo = sessionInitInfo;
             State = SessionState.Creating;
-            _cache = RedisDB.Connection.GetDatabase();
         }
 
-        public void AddBatchClient(string clientId)
+        public static void RegisterSessionInfo(string sessionId, SessionInitInfo sessionInitInfo)
         {
-            Console.WriteLine($"Session: {SessionId} add batchclient {clientId} .");
+            var hashkey = SessionConfigurationManager.GetRedisSessionInitInfoKey(sessionId);
+            HashEntry[] redisSessionInitInfoHash =
+            {
+                new HashEntry("clientTimeout", sessionInitInfo.ClientIdleTimeout),
+                new HashEntry("sessionTimeout", sessionInitInfo.SessionIdleTimeout) 
+            };
+            Cache.HashSet(hashkey, redisSessionInitInfoHash);
+        }
+
+        public static int AddBatchClient(string sessionId, string clientId)
+        {
+            Console.WriteLine($"Session: {sessionId} add batchclient {clientId} .");
             //Add batch client info in Redis
-            var setKey = SessionConfigurationManager.GetRedisBatchClientIdKey(SessionId);
-            _cache.SetAdd(setKey, clientId);
+            var setKey = SessionConfigurationManager.GetRedisBatchClientIdKey(sessionId);
+            Cache.SetAdd(setKey, clientId);
             HashEntry[] clientEntry = { new HashEntry(clientId, BatchClientState.Active.ToString()) };
-            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
-            _cache.HashSet(hashKey, clientEntry);
+            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(sessionId);
+            Cache.HashSet(hashKey, clientEntry);
+            var sessionInitInfoKey = SessionConfigurationManager.GetRedisSessionInitInfoKey(sessionId);
+            return (int)Cache.HashGet(sessionInitInfoKey, "clientTimeout");
         }
 
-        public void RemoveBatchClient(string clientId)
+        public static void RemoveBatchClient(string sessionId, string clientId)
         {
-            var setKey =SessionConfigurationManager.GetRedisBatchClientIdKey(SessionId);
-            _cache.SetRemove(setKey, clientId);
-            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
-            _cache.HashDelete(hashKey, clientId);
+            var setKey =SessionConfigurationManager.GetRedisBatchClientIdKey(sessionId);
+            Cache.SetRemove(setKey, clientId);
+            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(sessionId);
+            Cache.HashDelete(hashKey, clientId);
         }
 
-        public bool UpdateBatchClientState(string clientId, BatchClientState state, int requestNum = 0)
+        public static bool UpdateBatchClientState(string sessionId, string clientId, BatchClientState state, int requestNum = 0)
         {
             //TODO: ErrorHandling, how the state machine work? Check previous state first.
-            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(SessionId);
-            var storedState = (BatchClientState)Enum.Parse(typeof(BatchClientState),_cache.HashGet(hashKey, clientId).ToString());
+            var hashKey = SessionConfigurationManager.GetRedisBatchClientStateKey(sessionId);
+            var storedState = (BatchClientState)Enum.Parse(typeof(BatchClientState), Cache.HashGet(hashKey, clientId).ToString());
             //Only previous state is not an end state, the update operation can execute
             if (BatchClient.IsEndState(storedState))
             {
@@ -57,25 +68,25 @@ namespace Microsoft.Telepathy.Session
 
             if (state == BatchClientState.EndOfRequest)
             {
-                var tasksKey = SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(SessionId, clientId);
-                _cache.StringSet(tasksKey, requestNum.ToString());
+                var tasksKey = SessionConfigurationManager.GetRedisBatchClientTotalTasksKey(sessionId, clientId);
+                Cache.StringSet(tasksKey, requestNum.ToString());
                 Console.WriteLine($"[Session] UpdateBatchClientState to EndOfRequest, total request number is {requestNum}");
             }
 
             HashEntry[] clientEntry = { new HashEntry(clientId, state.ToString()) };
-            _cache.HashSet(hashKey, clientEntry);
+            Cache.HashSet(hashKey, clientEntry);
             return true;
         }
 
-        public bool UpdateSessionState(string sessionId, SessionState state)
+        public static bool UpdateSessionState(string sessionId, SessionState state)
         {
             var sessionStateKey = SessionConfigurationManager.GetRedisSessionStateKey(sessionId);
-            if (!_cache.KeyExists(sessionStateKey))
+            if (!Cache.KeyExists(sessionStateKey))
             {
-                _cache.StringSet(sessionStateKey, state.ToString());
+                Cache.StringSet(sessionStateKey, state.ToString());
                 return true;
             }
-            var storedState = (SessionState) Enum.Parse(typeof(SessionState), _cache.StringGet(sessionStateKey).ToString());
+            var storedState = (SessionState) Enum.Parse(typeof(SessionState), Cache.StringGet(sessionStateKey).ToString());
             switch (storedState)
             {
                 case SessionState.Completed:
@@ -85,21 +96,22 @@ namespace Microsoft.Telepathy.Session
                     return false;
             }
 
-            _cache.StringSet(sessionStateKey, state.ToString());
+            Cache.StringSet(sessionStateKey, state.ToString());
             return true;
         }
 
-        public bool CloseAllBatchClients(string sessionId)
+        public static bool CloseAllBatchClients(string sessionId)
         {
+            Cache.KeyDelete(SessionConfigurationManager.GetRedisSessionInitInfoKey(sessionId));
             //Set all BatchClient state as closed in redis
             var hashkey = SessionConfigurationManager.GetRedisBatchClientStateKey(sessionId);
-            var batchClients = _cache.HashGetAll(hashkey);
+            var batchClients = Cache.HashGetAll(hashkey);
             List<HashEntry> clients = new List<HashEntry>();
             foreach (var batchClient in batchClients)
             {
                 clients.Add(new HashEntry(batchClient.Name, BatchClientState.Closed.ToString()));
             }
-            _cache.HashSet(hashkey, clients.ToArray());
+            Cache.HashSet(hashkey, clients.ToArray());
             return true;
         }
     }
