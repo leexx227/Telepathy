@@ -20,7 +20,7 @@ namespace Microsoft.Telepathy.Frontend.MessagePersist
 
         public NsqPersist()
         {
-            producer = new Producer(Configuration.NsqAddress);
+            producer = new Producer(Configuration.NsqAddress, new Config {DialTimeout = TimeSpan.FromSeconds(10)});
         }
 
         public void Dispose()
