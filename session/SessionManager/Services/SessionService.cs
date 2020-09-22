@@ -32,12 +32,10 @@ namespace Microsoft.Telepathy.SessionManager.Services
 
         private readonly NsqDelegation _nsqDelegation;
 
-        private readonly ConcurrentDictionary<string, Session> _activeSessions;
-
         public SessionService(ILogger<SessionService> logger)
         {
             
-            var sessionConfigFilePath = Environment.GetEnvironmentVariable(SessionConstants.SessionConfigPathEnvVar, EnvironmentVariableTarget.Machine);
+            var sessionConfigFilePath = Environment.GetEnvironmentVariable(SessionConstants.SessionConfigPathEnvVar);
             AzureBatchSessionConfiguration sessionConfiguration = SessionConfigurationManager.ConfigureAzureBatchSessionFromJsonFile(sessionConfigFilePath);
             ResourceProviderRuntimeConfiguration.SessionLauncherStorageConnectionString = sessionConfiguration.SoaStorageConnectionString;
             AzureBatchConfiguration.InitializeAzureBatchConfiguration(sessionConfiguration);
@@ -45,24 +43,20 @@ namespace Microsoft.Telepathy.SessionManager.Services
             _resourceProvider = new AzureBatchResourceProvider();
             _schedulerDelegation = new AzureBatchSchedulerDelegation(_resourceProvider);
             _nsqDelegation = new NsqDelegation();
-            _activeSessions = new ConcurrentDictionary<string, Session>();
         }
 
         public override async Task<SessionReply> CreateSession(CreateSessionRequest createSessionRequest, ServerCallContext context)
         {
             _logger.LogInformation("Start to create session...");
-            
             Version serviceVersion = string.IsNullOrEmpty(createSessionRequest.SessionInitInfo.ServiceVersion) ? null : Version.Parse(createSessionRequest.SessionInitInfo.ServiceVersion);
             SessionInitInfo info = new SessionInitInfo(createSessionRequest.SessionInitInfo.ServiceName, serviceVersion, createSessionRequest.SessionInitInfo.Durable, createSessionRequest.SessionInitInfo.MaxServiceInstance, createSessionRequest.SessionInitInfo.SessionCreator);
-            Session session = new Session(info);
             //create a session job and ask for resource from resource provider
-            ResourceAllocateInfo resourceAllocateInfo = await _resourceProvider.AllocateSessionResourceAsync(session);
-            session.SessionId = resourceAllocateInfo.Id;
-            Console.WriteLine($"Current session id is {session.SessionId}.");
-            _activeSessions.TryAdd(session.SessionId, session);
-            session.UpdateSessionState(session.SessionId, SessionState.Creating);
+            ResourceAllocateInfo resourceAllocateInfo = await _resourceProvider.AllocateSessionResourceAsync(info);
+            Console.WriteLine($"Current session id is {resourceAllocateInfo.Id}.");
+            Session.RegisterSessionInfo(resourceAllocateInfo.Id, info);
+            Session.UpdateSessionState(resourceAllocateInfo.Id, SessionState.Creating);
             //Register to start session job monitor which maintains the session state
-            await _schedulerDelegation.RegisterJobAsync(session.SessionId);
+            await _schedulerDelegation.RegisterJobAsync(resourceAllocateInfo.Id);
             return new SessionReply { SessionId = resourceAllocateInfo.Id };
         }
 
@@ -75,10 +69,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
         {
             string sessionId = request.SessionId;
             _resourceProvider.TerminateAsync(sessionId);
-            //TODO: Clean up session client queues
-            _activeSessions.TryRemove(sessionId, out Session session);
             //Do cleanup work, set all batchclient state as closed
-            session?.CloseAllBatchClients(sessionId);
+            Session.CloseAllBatchClients(sessionId);
             return Task.FromResult(new Empty());
         }
 
@@ -86,9 +78,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
         {
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
-            _activeSessions.TryGetValue(sessionId, out Session session);
-            session?.AddBatchClient(clientId);
-            int clientTimeout = session.SessionInitInfo.ClientIdleTimeout;
+            int clientTimeout = Session.AddBatchClient(sessionId, clientId);
+           
             await _nsqDelegation.RegisterBatchClientAsync(sessionId, clientId, clientTimeout);
             return new CreateBatchClientReply{ IsReady = true};
         }
@@ -97,9 +88,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
         {
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
-            _activeSessions.TryGetValue(sessionId, out Session session);
-            session?.UpdateBatchClientState(clientId, BatchClientState.Closed);
-            session?.RemoveBatchClient(clientId);
+            Session.UpdateBatchClientState(sessionId, clientId, BatchClientState.Closed);
+            Session.RemoveBatchClient(sessionId, clientId);
             return Task.FromResult(new Empty());
         }
 
@@ -107,9 +97,8 @@ namespace Microsoft.Telepathy.SessionManager.Services
         {
             string sessionId = request.BatchClientInfo.SessionId;
             string clientId = request.BatchClientInfo.ClientId;
-            _activeSessions.TryGetValue(sessionId, out Session session);
-            Console.WriteLine($"total request numer is {request.TotalRequestNumber}");
-            session?.UpdateBatchClientState(clientId, BatchClientState.EndOfRequest, requestNum: request.TotalRequestNumber);
+            Console.WriteLine($"total request number is {request.TotalRequestNumber}");
+            Session.UpdateBatchClientState(sessionId, clientId, BatchClientState.EndOfRequest, requestNum: request.TotalRequestNumber);
             return Task.FromResult(new Empty());
         }
     }

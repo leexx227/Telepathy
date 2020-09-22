@@ -136,6 +136,7 @@ namespace Microsoft.Telepathy.Session.ServiceRegistration
                     catch (Exception ex)
                     {
                         Trace.TraceError($"[{nameof(ServiceRegistrationRepo)}] {nameof(GetServiceRegistrationPath)}: Exception happened when find file {filename} in path {centralPath}:{Environment.NewLine}{ex.ToString()}");
+                        throw ex;
                     }
                 }
             }
@@ -184,15 +185,12 @@ namespace Microsoft.Telepathy.Session.ServiceRegistration
                 }
 
                 string mutexName = destination;
-                using (new GlobalMutex(mutexName, 5000))
-                {
-                    if (SameFileDownloaded())
+                if (SameFileDownloaded())
                     {
                         return destination;
                     }
 
                     File.Copy(filePath, destination, true);
-                }
 
                 return destination;
             }

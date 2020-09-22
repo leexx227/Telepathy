@@ -48,7 +48,7 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
 
         private readonly string taskInLinuxCmd = $@"/bin/bash -c 'dotnet ${AzureBatchPrepJobWorkingDir}/{RuntimeFolder}/{RuntimeName}'";
 
-        private string DispatcherIP = Environment.GetEnvironmentVariable(SessionConstants.DispatcherIPEnvVar, EnvironmentVariableTarget.Machine);
+        private string DispatcherIP = Environment.GetEnvironmentVariable(SessionConstants.DispatcherIPEnvVar);
 
 
         // TODO: remove parameter less ctor and add specific parameters for the sake of test-ablity
@@ -314,6 +314,6 @@ namespace Microsoft.Telepathy.ResourceProvider.Impls.AzureBatch
             new ServiceRegistrationRepo(
                 regPath,
                 new AzureBlobServiceRegistrationStore(ResourceProviderRuntimeConfiguration.SessionLauncherStorageConnectionString),
-                Environment.GetEnvironmentVariable(SessionConstants.TelepathyWorkingDirEnvVar, EnvironmentVariableTarget.Machine));
+                Environment.GetEnvironmentVariable(SessionConstants.TelepathyWorkingDirEnvVar));
     }
 }

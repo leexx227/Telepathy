@@ -9,6 +9,8 @@ namespace SessionManager
     {
         public static void Main(string[] args)
         {
+            // AppContext.SetSwitch(
+            //     "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             CreateHostBuilder(args).Build().Run();
         }
 
@@ -18,7 +20,7 @@ namespace SessionManager
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseUrls("https://0.0.0.0:5001/");
+                    webBuilder.UseUrls("http://0.0.0.0:5001/");
                     webBuilder.UseStartup<Startup>();
                 });
     }
