@@ -102,8 +102,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private bool SvcTargetValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.SvcHostName);
 
-        private bool DispatcherTargetValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.DispatcherIp) &&
-                                              (info.DispatcherPort >= 0);
+        private bool DispatcherTargetValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.DispatcherIp) && (info.DispatcherPort >= 0);
 
         private bool SessionIdValid(EnvironmentInfo info) => !string.IsNullOrEmpty(info.SessionId);
 
@@ -220,6 +219,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                     }
                     else
                     {
+                        // Cannot communicate with dispatcher. Should exit host agent itself and let session service to restart host agent.
                         Console.WriteLine($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
                         Trace.TraceError($"[GetTaskAsync] Retry exhausted. Error occured when getting task from dispatcher: { e.Message}");
                         throw;
@@ -301,6 +301,8 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
             catch (Exception e)
             {
+                // Task failed. According to different exception, set TaskState to different state. If is service-side error which cannot be repaired by re-dispatched,
+                // set the state to "Finish", or if is host agent-side error where the task may be succeeded on another node, set the state to "Requeue" for re-dispatching.
                 Trace.TraceError($"[CallMethodWrapperAsync] Error occured when handling svc host method call: {e.Message}");
                 var failedInnerResult = new InnerResult()
                 {
@@ -324,6 +326,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 }
                 else
                 {
+                    // Host agent exception. Should be re-dispatched to other node for redoing.
                     failedResult.TaskState = TaskStateEnum.Requeue;
                     Interlocked.Increment(ref this.consecutiveFailedTask);
                     Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
@@ -331,6 +334,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
                 if (this.consecutiveFailedTask > this.maxConsecutiveFailedTask)
                 {
+                    // If this node consecutively failed, maybe this node is broken and should exit and let session service to restart host agent on another node.
                     throw new Exception($"[Host agent] Service consecutively failed. Consecutive failed task: {this.consecutiveFailedTask}.");
                 }
                 return failedResult;
@@ -359,16 +363,24 @@ namespace Microsoft.Telepathy.HostAgent.Core
             return result;
         }
 
+        /// <summary>
+        /// Handle exception thrown from service.
+        /// </summary>
+        /// <param name="ex"></param>
+        /// <param name="failedResult"></param>
         private void HandleRpcException(RpcException ex, ref SendResultRequest failedResult)
         {
             if (this.IsServiceException(ex))
             {
+                // Indicate that the service is not written correctly. Should return Finished state as the task cannot be finished by re-dispatching. 
                 failedResult.TaskState = TaskStateEnum.Finished;
                 this.consecutiveFailedTask = 0;
                 Console.WriteLine($"[Host agent] Catch exception and return FINISHED result to dispatcher.");
             }
             else
             {
+                // Indicate that the specified task failed and should be re-dispatched to other node for redoing,
+                // e.g., network error or cpu filled error only on this compute node.
                 failedResult.TaskState = TaskStateEnum.Requeue;
                 Interlocked.Increment(ref this.consecutiveFailedTask);
                 Console.WriteLine($"[Host agent] Catch exception and return REQUEUE result to dispatcher. Consecutive failed task: {this.consecutiveFailedTask}.");
@@ -524,10 +536,16 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
         }
 
+        /// <summary>
+        /// RpcException that is service itself error and can't be maintained by retry or restart.
+        /// Such exception should be directly thrown.
+        /// </summary>
+        /// <param name="e"></param>
         private void HandleShouldNotRetryError(RpcException e)
         {
             if (e.StatusCode == StatusCode.Unavailable)
             {
+                // Service not bind to the correct port.
                 Console.WriteLine($"[Host agent] Service port binding error: {e.Message}");
                 Trace.TraceError($"[Host agent] Service port binding error: {e.Message}");
                 if (this.IsSvcInitTimeout())
@@ -537,6 +555,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
             }
             else if (e.StatusCode == StatusCode.Unimplemented)
             {
+                // Service implementation error.
                 Console.WriteLine($"[Host agent] Service not implemented error: {e.Message}");
                 Trace.TraceError($"[Host agent] Service not implemented error: {e.Message}");
                 if (this.IsSvcInitTimeout())
@@ -602,7 +621,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 {
                     Console.WriteLine("[MonitorSvc] Service down.");
                     this.isSvcAvailable = false;
-                    this.svcInitSw = new Stopwatch();
+                    this.svcInitSw.Reset();
                     await this.RetryToLoadSvc();
                 }
 

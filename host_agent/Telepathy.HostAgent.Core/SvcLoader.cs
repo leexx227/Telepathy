@@ -23,17 +23,24 @@ namespace Microsoft.Telepathy.HostAgent.Core
 
         private void SetProcessStartInfo()
         {
+            // Service path in service registry file. Should be like "echo/EchoServer.dll".
+            // It's the relative path to the real working directory
             var svcPath = Environment.GetEnvironmentVariable(HostAgentConstants.SvcPathEnvVar);
             Utility.ThrowIfNullOrEmpty(svcPath, HostAgentConstants.SvcPathEnvVar);
 
+            // Working directory environment variable name. The real working directory should be red from "workingDirEnvVarName".
+            // Use this environment variable in order to hide the underlying resource provider from host agent.
             var workingDirEnvVarName = Environment.GetEnvironmentVariable(HostAgentConstants.TelepathyWorkingDirEnvVar);
             Utility.ThrowIfNullOrEmpty(workingDirEnvVarName, HostAgentConstants.TelepathyWorkingDirEnvVar);
 
+            // Real working directory read from environment variable.
             var svcRealPath = Environment.GetEnvironmentVariable(workingDirEnvVarName);
             Utility.ThrowIfNullOrEmpty(svcRealPath, "service real working path");
 
+            // The absolute path of the service.
             var svcFullPath = Path.Combine(svcRealPath, svcPath);
 
+            // In order to set the working directory in process start info, service program file and the path should be split.
             var pathList = svcPath.Contains(HostAgentConstants.WinFilePathSeparator)
                 ? svcPath.Split(HostAgentConstants.WinFilePathSeparator)
                 : svcPath.Split(HostAgentConstants.UnixFilePathSeparator);
@@ -92,6 +99,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 return;
             }
 
+            // Use "dotnet <service_name>.dll" to load csharp service on both Windows and Linux.
             if (this.program.EndsWith(".dll"))
             {
                 this.processInfo.FileName = HostAgentConstants.DotnetCommand;
@@ -99,17 +107,21 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 return;
             }
 
+            // Support Linux executable file.
             this.processInfo.FileName = svcFullPath;
         }
 
         private void SetJavaProgramInfo()
         {
+            // Use "java -jar <service_name>.jar" to load java service.
             this.processInfo.FileName = HostAgentConstants.JavaCommand;
             this.processInfo.Arguments = HostAgentConstants.JarPrefix + this.program;
         }
 
         private void SetPythonProgramInfo(string svcFullPath)
         {
+            // Support Windows executable file (Not recommended as some third-party executable file generation tools
+            // may cause security problem on Windows Server and may be delete by the system automatically).
             if (this.program.EndsWith(".exe"))
             {
                 this.processInfo.FileName = svcFullPath;
@@ -121,6 +133,7 @@ namespace Microsoft.Telepathy.HostAgent.Core
                 var dependencyFilePath = Path.Combine(this.processInfo.WorkingDirectory, HostAgentConstants.PythonDependencyFile);
                 if (File.Exists(dependencyFilePath))
                 {
+                    // Use "pip3 install -r requirement.txt" to install the external python packages.
                     var strCmdText = "install -r " + dependencyFilePath;
                     var dependencyInstall = Process.Start("pip3", strCmdText);
                     while (!dependencyInstall.HasExited)
@@ -145,11 +158,15 @@ namespace Microsoft.Telepathy.HostAgent.Core
                                       $"Will not install any dependency package. This may cause the service failed if it relies on some external dependencies.");
                 }
 
+                // The python command on Windows is "python" with version 3.8.
+                // The python command on ubuntu 18.04 is "python3" with version 3.6 which is pre-installed and the
+                // default "python" command on ubuntu 18.04 is python2.7 which is also pre-installed.
                 this.processInfo.FileName = Utility.GetPythonCommand();
                 this.processInfo.Arguments = this.program;
                 return;
             }
 
+            // Support Linux executable file (Not recommended).
             this.processInfo.FileName = svcFullPath;
         }
     }

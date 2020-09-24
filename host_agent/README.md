@@ -1,2 +1,16 @@
 # HostAgent
+ Host agent is the component of Telepathy to load and monitor user's service as well as forward the tasks from dispatcher to the service.
 
+## Load and Monitor Service
+Currently, Telepathy host agent supports three service languages, i.e., c#, java and python running on two operation systems, i.e., Windows and Linux (Ubuntu). It finds an avalable port on the local compute node and uses the specified method to load services corresponding to different languages while the port set as environment variable in the service process. Therefore, in user's service code, the server **must bind to the port read from the environment variable** or the server will never receive the tasks. End users should upload the service and the service confuguration file to specify the service's language and location so that host agent could know which service it should load.
+
+- C#: Host agent supports to load the **.EXE** executable file on Windows and the **.DLL** file on both Windows and Linux. For Linux system, the executable file is also supported. For .EXE file on Windows and executable file on Linux, host agent will directly run the executable file which means the `FileName` of `ProcessStartInfo` is the executable file name. For .DLL file, host agent uses `dotnet <program_name>.dll` to load the service, which means the the `FileName` of `ProcessStartInfo` is `dotnet` and the `Arguments` is `<program_name>.dll`.
+
+- Java: Host agent supports to load the **.JAR** file with JRE installed both on Windows and Linux operation systems.
+
+- Python: Host agent supports to load the **.py** file on both Windows and Linux operation systems. The python version on Ubuntu 18.04 is 3.6 which is pre-installed while it's 3.8 on Windows which is installed manually in the compute node image. For python service relaying on external packages, the `requirement.txt` file should be uploaded. Before loading the real service, host agent will first install all the dependencies in `requirement.txt`. The resource provider will take the responsibility for the dependencies isolation between different services so that host agent doesn't have the function to clean up the packages itself. For the **.EXE** file on Windows and the executable file on Linux, as the operation system may not trust the third party tools to build the **.py** file to the executable file, there may be some unexpected errors so that the executable file is not recommended although supported.
+
+After loading the service, host agent will also monitor the service's health by polling if the service process has exited. If the service is exited, host agent will retry to reload the service for some times.
+
+## Forward the tasks
+It's another important function for the host agent to forward the tasks from dispatcher to user's service. Host agent uses separated threads to prefetch tasks and send tasks to service for better performance. Concurrent service is also supported to improve the throughput. According to different kind of failure, host agent employs different error handling strategies. If the failure is beyond host agent's scope, it will crash itself and let session service notice and restart host agent on another compute node.
